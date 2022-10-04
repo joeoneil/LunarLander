@@ -1,0 +1,3 @@
+[submodule "monogame-events"]
+	path = monogame-events
+	url = https://github.com/joeoneil/monogame-events.git
