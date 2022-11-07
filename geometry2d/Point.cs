@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 
 namespace LunarLander.geometry2d;
     
@@ -17,15 +18,15 @@ public class Point
     public Point() : this(0, 0) { }
 
     // I love operator overloading
-    public static Point operator +(Point a, Point b) => new Point(a.x + b.x, a.y + b.y);
+    public static Point operator +(Point a, Point b) => new (a.x + b.x, a.y + b.y);
     public static Point operator -(Point a, Point b) => a + -b;
-    public static Point operator -(Point a) => new Point(-a.x, -a.y);
-    public static Point operator *(Point a, Point b) => new Point(a.x * b.x, a.y * b.y);
-    public static Point operator *(Point a, double s) => new Point(a.x * s, a.y * s);
+    public static Point operator -(Point a) => new (-a.x, -a.y);
+    public static Point operator *(Point a, Point b) => new (a.x * b.x, a.y * b.y);
+    public static Point operator *(Point a, double s) => new (a.x * s, a.y * s);
     public static Point operator *(double s, Point a) => a * s;
-    public static Point operator /(Point a, Point b) => new Point(a.x / b.x, a.y / b.y);
+    public static Point operator /(Point a, Point b) => new (a.x / b.x, a.y / b.y);
     public static Point operator /(Point a, double s) => a * (1 / s);
-    public static Point operator /(double s, Point a) => new Point(s / a.x, s / a.y);
+    public static Point operator /(double s, Point a) => new (s / a.x, s / a.y);
     public static double operator %(Point a, Point b) => a.cross(b);
     public static double operator ^(Point a, Point b) => a.dot(b);
     
@@ -82,5 +83,33 @@ public class Point
         double dy = y - center.y;
         x = center.x + dx * c - dy * s;
         y = center.y + dx * s + dy * c;
+    }
+
+    public Point normalize() {
+        double length = this.magnitude();
+        x /= length;
+        y /= length;
+        return this;
+    }
+    
+    public Point normalized() {
+        return new Point(x, y).normalize();
+    }
+
+    public Point project(Point p) {
+        double dot = this.dot(p);
+        return this.normalized() * dot;
+    }
+
+    public double magnitude() {
+        return this.distance(0, 0);
+    }
+
+    public Point clone() {
+        return new Point(x, y);
+    }
+    
+    public Vector2 toVector2() {
+        return new Vector2((float)x, (float)y);
     }
 }

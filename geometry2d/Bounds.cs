@@ -2,7 +2,7 @@ using System;
 
 namespace LunarLander.geometry2d; 
 
-public class Bounds {
+public struct Bounds {
     // This class is essentially a rectangle, but it is immutable and always upright.
     // It is used to represent the bounds of a shape.
     //
@@ -45,5 +45,13 @@ public class Bounds {
     
     public bool contains(double x, double y) {
         return (x >= this.left && x <= this.right && y >= this.top && y <= this.bottom);
+    }
+
+    public Bounds translate(double x, double y) {
+        return new Bounds(this.x + x, this.y + y, this.width, this.height);
+    }
+
+    public Bounds translate(Point p) {
+        return translate(p.x, p.y);
     }
 }

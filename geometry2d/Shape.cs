@@ -65,4 +65,6 @@ public abstract class Shape {
     public double distance(double x, double y) {
         return Math.Sqrt(squareDistance(x, y));
     }
+
+    public abstract Point contactNormal(Shape other);
 }

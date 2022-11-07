@@ -45,6 +45,10 @@ public class Circle : Shape{
         };
     }
 
+    public override Point contactNormal(Shape s) {
+        throw new System.NotImplementedException();
+    }
+
     private bool intersects(Rectangle r) {
         double dx = Math.Abs(center.x - r.getCentroid().x);
         double dy = Math.Abs(center.y - r.getCentroid().y);

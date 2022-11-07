@@ -60,6 +60,7 @@ public class Polygon : Shape {
         return s switch {
             Polygon polygon => intersects(polygon),
             Circle circle => intersects(circle),
+            Line line => intersects(line),
             _ => throw new ArgumentException("Unknown shape type")
         };
     }
@@ -130,6 +131,83 @@ public class Polygon : Shape {
         boundingBoxCached = true;
     }
 
+    public override Point contactNormal(Shape s) {
+        if (!this.intersects(s)) {
+            return new Point(0, 0);
+        }
+
+        switch (s) {
+            case Polygon polygon:
+                return contactNormal(polygon);
+            case Line line:
+                return contactNormal(line);
+            case Circle circle:
+                return contactNormal(circle);
+            default:
+                throw new ArgumentOutOfRangeException(nameof(s), s, null);
+        }
+    }
+
+    public Point contactNormal(Polygon p) {
+        // get the edge that intersects the polygon
+        Line l;
+        try {
+            l = getLines().First(p.intersects);
+        } catch (InvalidOperationException) {
+            return new Point(0, 0);
+        }
+
+        if (l == null) {
+            return new Point(0, 0);
+        }
+        // return the unit normal of the edge
+        Point normal = l.normal().normalize();
+        // find the point on the polygon that is furthest inside the edge
+        Point furthest;
+        // This is disgusting, but it works
+        try {
+            furthest = p.points.Where(contains).Aggregate((p1, p2) => l.distance(p1) > l.distance(p2) ? p1 : p2);
+        }
+        catch (InvalidOperationException) {
+            try {
+                l = p.getLines().First(intersects);
+                furthest = this.points.Where(p.contains).Aggregate((p1, p2) => l.distance(p1) > l.distance(p2) ? p1 : p2);
+            }
+            catch (InvalidOperationException) {
+                furthest = null;
+            }
+        }
+        if (furthest == null) {
+            return new Point(0, 0);
+        }
+        // scale the normal by the distance from the edge to the point
+        normal *= l.distance(furthest);
+        return normal;
+    }
+
+    public Point contactNormal(Circle c) {
+        throw new System.NotImplementedException();
+    }
+    
+    public Point contactNormal(Line l) {
+        // get the edge that intersects the line
+        Line edge;
+        try {
+            edge = getLines().First(l.intersects);
+        } catch (InvalidOperationException) {
+            return new Point(0, 0);
+        }
+        // return the unit normal of the edge
+        Point normal = l.normal().normalize();
+        // if the polygon's centroid is on the left side of the line, flip the normal
+        if (l.side(centroid) == 1) {
+            normal *= -1;
+        }
+        // scale the normal by the distance from the line to the edge's closest point
+        normal *= Math.Min(l.distance(edge.p1), l.distance(edge.p2));
+        return normal;
+    }
+
     public List<Line> getLines() {
         if (linesCached) return lines;
         updateLines();
@@ -139,7 +217,7 @@ public class Polygon : Shape {
     
     private void updateLines() {
         for (int i = 0; i < points.Count; i++) {
-            lines[i] = new Line(points[i], points[(i + 1) % points.Count]);
+            lines[i].setPoints(points[i], points[(i + 1) % points.Count]);
         }
         linesCached = true;
     }

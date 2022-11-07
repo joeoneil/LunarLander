@@ -9,7 +9,7 @@ public class Image {
     public uint height { get; private set; }
     
     public Color[] buffer { get; private set; }
-    public bool texture_changed { get; private set; }
+    public bool texture_changed { get; set; }
     
     public Texture2D texture { get; private set; }
     
@@ -28,7 +28,6 @@ public class Image {
     
     public void setPixel(uint x, uint y, Color color) {
         buffer[y * width + x] = color;
-        this.texture_changed = true;
     }
     
     public Color getPixel(uint x, uint y) {
