@@ -1,6 +1,6 @@
-[submodule "monogame-events"]
-	path = monogame-events
+[submodule "gitmodules/monogame-events"]
+	path = gitmodules/monogame-events
 	url = https://github.com/joeoneil/monogame-events
-[submodule "Devcade-library"]
-	path = Devcade-library
+[submodule "gitmodules/Devcade-library"]
+	path = gitmodules/Devcade-library
 	url = https://github.com/ComputerScienceHouse/Devcade-library

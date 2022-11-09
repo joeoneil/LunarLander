@@ -15,7 +15,7 @@ namespace LunarLander.mode;
 
 public class LanderGame : IGameMode {
     
-    private static readonly KeyboardManager _keyManager = new ();
+    private static readonly InputManager _inputManager = new ();
 
     private static List<Shape> _shapes = new ();
     private static Point center;
@@ -63,6 +63,27 @@ public class LanderGame : IGameMode {
     private LanderGame() { }
 
     public static LanderGame instance { get; } = new ();
+    
+#if RELEASE
+    private static readonly CompoundButton _thrust = CompoundButton.fromGeneric(GenericButton.DevA1);
+    private static readonly CompoundButton _rotateLeft = CompoundButton.fromGeneric(GenericButton.DevA2);
+    private static readonly CompoundButton _rotateRight = CompoundButton.fromGeneric(GenericButton.DevA3);
+    private static readonly CompoundButton _a = CompoundButton.fromGeneric(GenericButton.DevB1);
+    private static readonly CompoundButton _b = CompoundButton.fromGeneric(GenericButton.DevB2);
+    private static readonly CompoundButton _down = CompoundButton.fromGeneric(GenericButton.DevA4);
+    private static readonly CompoundButton _start = CompoundButton.fromGeneric(GenericButton.DevB4);
+    private static readonly CompoundButton _reset = CompoundButton.fromGeneric(GenericButton.DevB3);
+#else
+    private static readonly CompoundButton _thrust = CompoundButton.fromGeneric(GenericButton.KeyW);
+    private static readonly CompoundButton _rotateLeft = CompoundButton.fromGeneric(GenericButton.KeyA);
+    private static readonly CompoundButton _rotateRight = CompoundButton.fromGeneric(GenericButton.KeyD);
+    private static readonly CompoundButton _a = CompoundButton.fromGeneric(GenericButton.KeyV);
+    private static readonly CompoundButton _b = CompoundButton.fromGeneric(GenericButton.KeyB);
+    private static readonly CompoundButton _down = CompoundButton.fromGeneric(GenericButton.KeyS);
+    private static readonly CompoundButton _start = CompoundButton.fromGeneric(GenericButton.KeyEnter);
+    private static readonly CompoundButton _reset = CompoundButton.fromGeneric(GenericButton.KeyR);
+#endif
+    
 
     public void Initialize(IGraphicsDeviceService _graphics, uint WINDOW_WIDTH, uint WINDOW_HEIGHT) {
         levels = new List<Level>(new[] {
@@ -77,23 +98,23 @@ public class LanderGame : IGameMode {
         
         fuelCountText = new Text($"{Math.Ceiling(fuel)}", new Point(266, 5), 16);
 
-        _keyManager.OnHeld(Keys.A, () => {
+        _inputManager.onHeld(_rotateLeft, () => {
             rotateLander(-8);
         });
-        _keyManager.OnHeld(Keys.D, () => {
+        _inputManager.onHeld(_rotateRight, () => {
             rotateLander(8);
         });
-        _keyManager.OnHeld(Keys.W, () => {
+        _inputManager.onHeld(_thrust, () => {
             thrustLander(false);
         });
-        _keyManager.OnHeld(Keys.W, () => {
+        _inputManager.onHeld(!_thrust, () => {
             thrustLander(true);
-        }, true);
-        _keyManager.OnPressed(Keys.R, () => {
+        });
+        _inputManager.onPressed(_reset, () => {
             fuel = start_fuel - currentLevel.fuel;
             loadLevel(levels[levelIndex]);
         });
-        _keyManager.OnPressed(Keys.Up, () => {
+        _inputManager.onPressed(_thrust, () => {
             if (godModeStep is 0 or 1) {
                 godModeStep++;
             }
@@ -101,7 +122,7 @@ public class LanderGame : IGameMode {
                 godModeStep = 0;
             }
         });
-        _keyManager.OnPressed(Keys.Down, () => {
+        _inputManager.onPressed(_down, () => {
             if (godModeStep is 2 or 3) {
                 godModeStep++;
             }
@@ -109,7 +130,7 @@ public class LanderGame : IGameMode {
                 godModeStep = 0;
             }
         });
-        _keyManager.OnPressed(Keys.Left, () => {
+        _inputManager.onPressed(_rotateLeft, () => {
             if (godModeStep is 4 or 6) {
                 godModeStep++;
             }
@@ -117,7 +138,7 @@ public class LanderGame : IGameMode {
                 godModeStep = 0;
             }
         });
-        _keyManager.OnPressed(Keys.Right, () => {
+        _inputManager.onPressed(_rotateRight, () => {
             if (godModeStep is 5 or 7) {
                 godModeStep++;
             }
@@ -125,7 +146,7 @@ public class LanderGame : IGameMode {
                 godModeStep = 0;
             }
         });
-        _keyManager.OnPressed(Keys.B, () => {
+        _inputManager.onPressed(_b, () => {
             if (godModeStep is 8) {
                 godModeStep++;
             }
@@ -133,7 +154,7 @@ public class LanderGame : IGameMode {
                 godModeStep = 0;
             }
         });
-        _keyManager.OnPressed(Keys.A, () => {
+        _inputManager.onPressed(_a, () => {
             if (godModeStep is 9) {
                 godModeStep++;
             }
@@ -141,7 +162,7 @@ public class LanderGame : IGameMode {
                 godModeStep = 0;
             }
         });
-        _keyManager.OnPressed(Keys.Enter, () => {
+        _inputManager.onPressed(_start, () => {
             if (godModeStep is 10) {
                 breakThreshold = double.MaxValue;
             }
@@ -167,7 +188,12 @@ public class LanderGame : IGameMode {
     }
 
     public void Update(GameTime gameTime) {
-        _keyManager.Update(Keyboard.GetState());
+        
+#if RELEASE
+        _inputManager.update(GamePad.GetState(PlayerIndex.One));
+#else
+        _inputManager.update(Keyboard.GetState());
+#endif
 
         updateTime = gameTime.ElapsedGameTime.Milliseconds / 1000.0;
         rotateLock = true;
@@ -254,7 +280,11 @@ public class LanderGame : IGameMode {
                     $"FUEL USED: {Math.Floor(start_fuel - fuel)}.{Math.Round((start_fuel - fuel) * 100 % 100)}\n" +
                     $"DEATHS: {deathCount}\n" +
                     $"{(currentLevel.meatball == null ? "COLLECTED MEATBALL" : "")}\n" +
-                    $"PRESS ENTER TO CONTINUE", 
+                    #if RELEASE
+                        "PRESS START TO CONTINUE",
+                    #else
+                        "PRESS ENTER TO CONTINUE",
+                    #endif
                     new Point(10, 200), 16);
                 levelIndex++;
                 if (levelIndex >= levels.Count) {

@@ -38,9 +38,20 @@ public class MainMenu : IGameMode {
     private static int selectedItem;
     private static Point center;
 
-    private static KeyboardManager _keyboardManager;
+    private static InputManager _inputManager;
 
     private static Image world;
+    
+    // button definitions
+    #if RELEASE
+        private CompoundButton down = CompoundButton.fromGeneric(GenericButton.DevA3);
+        private CompoundButton up = CompoundButton.fromGeneric(GenericButton.DevA1);
+        private CompoundButton enter = CompoundButton.fromGeneric(GenericButton.DevMenu);
+    #else
+        private CompoundButton down = CompoundButton.fromGeneric(GenericButton.KeyDown) | GenericButton.KeyS;
+        private CompoundButton up = CompoundButton.fromGeneric(GenericButton.KeyUp) | GenericButton.KeyW;
+        private CompoundButton enter = CompoundButton.fromGeneric(GenericButton.KeyEnter) | GenericButton.KeySpace;
+    #endif
 
     private MainMenu() { }
 
@@ -51,7 +62,7 @@ public class MainMenu : IGameMode {
     }
 
     public void Initialize(IGraphicsDeviceService graphicsDeviceService, uint width, uint height) {
-        _keyboardManager = new KeyboardManager();
+        _inputManager = new InputManager();
         world = new Image(graphicsDeviceService.GraphicsDevice, width, height);
         selectedItem = -1;
 
@@ -90,7 +101,7 @@ public class MainMenu : IGameMode {
             menuItems[i].setText(new Text(menuItemsString[i], tlc, fontSize));
         }
         
-        _keyboardManager.OnPressed(Keys.Up, () => {
+        _inputManager.onPressed(up, () => {
             switch (selectedItem) {
                 case > 0:
                     selectedItem--;
@@ -103,7 +114,7 @@ public class MainMenu : IGameMode {
                     break;
             }
         });
-        _keyboardManager.OnPressed(Keys.Down, () => {
+        _inputManager.onPressed(down, () => {
             if (selectedItem == menuItems.Count - 1) {
                 selectedItem = 0;
             }
@@ -111,7 +122,7 @@ public class MainMenu : IGameMode {
                 selectedItem++;
             }
         });
-        _keyboardManager.OnPressed(Keys.Enter, () => {
+        _inputManager.onPressed(enter, () => {
             if (selectedItem == -1) return;
             switch (menuItems[selectedItem].internalName) {
                 case null:
@@ -131,7 +142,7 @@ public class MainMenu : IGameMode {
     }
 
     public void Update(GameTime gameTime) {
-        _keyboardManager.Update(Keyboard.GetState());
+        _inputManager.update(Keyboard.GetState());
     }
 
     public void Draw(SpriteBatch spriteBatch, GameTime gameTime) {
