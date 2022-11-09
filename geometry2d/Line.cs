@@ -8,12 +8,15 @@ public class Line : Shape {
     public Point p2 { get; private set; }
     public double m { get; private set; }
     public double length { get; private set; }
+
+    private readonly bool greebleable; // this is not a word, but it's fun to say. Try it.
     
-    public Line(Point p1, Point p2) {
+    public Line(Point p1, Point p2, bool greebleable = true) {
         this.p1 = p1;
         this.p2 = p2;
         this.m = (p2.y - p1.y) / (p2.x - p1.x);
         this.length = Math.Sqrt(Math.Pow(p2.x - p1.x, 2) + Math.Pow(p2.y - p1.y, 2));
+        this.greebleable = greebleable;
     }
     
     public Line(double x1, double y1, double x2, double y2) : this(new Point(x1, y1), new Point(x2, y2)) { }
@@ -135,6 +138,7 @@ public class Line : Shape {
     }
 
     public IEnumerable<Line> greeble(int numSplits, double maxDeviation) {
+        if (!greebleable) return new List<Line> {this.clone()};
         List<Point> points = new () { p1 };
         Point normal = this.normal().normalized();
         for (int i = 0; i < numSplits; i++) {

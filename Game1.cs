@@ -1,75 +1,36 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
-using LunarLander.data;
-using LunarLander.geometry2d;
-using LunarLander.graphics;
+using LunarLander.mode;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using MonoGameEvents;
-using Point = LunarLander.geometry2d.Point;
 
 namespace LunarLander;
 
 public class LunarLander : Game {
-    public static readonly Random rng = new(DateTime.Now.Millisecond);
+    public static LunarLander instance { get; private set; }
 
+    public static readonly Random rng = new(DateTime.Now.Millisecond);
+    
     private const int WINDOW_WIDTH = 600;
     private const int WINDOW_HEIGHT = (int)((21 / 9.0) * WINDOW_WIDTH);
-    private readonly Point center = new(WINDOW_WIDTH / 2.0, WINDOW_HEIGHT / 2.0);
     
-    private readonly GraphicsDeviceManager _graphics;
+    private readonly GraphicsDeviceManager _graphics; 
     private SpriteBatch _spriteBatch;
-    private readonly KeyboardManager _keyManager = new ();
-
-    private List<Shape> _shapes = new ();
-
-    private Polygon lander;
-    private List<Line> landerFragments;
-    private List<Point> fragmentVelocities;
-    private List<double> fragmentRotations;
-    private double deadTimer;
-    private int deathCount;
+    private readonly KeyboardManager _keyboardManager = new();
     
-    private Point landerVelocity = new (0, 0);
-    private Point landerPosition = new (0, 0);
-    private readonly Point gravity = new (0, -32.4);
-    private double theta;
-    private const double thrust_power = 275;
-    private double thrust_graphic;
-    private double fuel;
-    private double start_fuel;
-    private Text fuelText;
-    private Text fuelCountText;
-    private string fuelCountString;
-
-    private double updateTime;
-    private bool rotateLock;
-    private bool thrustLock;
-    private bool isDead;
-
-    private double breakThreshold = 35;
-    private int godModeStep;
-    
-    private Image world;
-    private Level currentLevel;
-
-    private List<Level> levels;
-    private int levelIndex;
-    private double levelTimer;
-    private double levelCompleteTimer;
-    private bool levelComplete;
-    private Text levelCompleteText;
-
-    private Texture2D meatball;
-    private int meatballsCollected;
-
-    public LunarLander()
-    {
+    private readonly Dictionary<string, IGameMode> _gameModes = new();
+    private string _currentGameMode = "MainMenu";
+    public LunarLander() {
+        instance = this;
+        
         _graphics = new GraphicsDeviceManager(this);
         Content.RootDirectory = "Content";
-        IsMouseVisible = true;
+        IsMouseVisible = false;
+
+        _gameModes.Add("MainMenu", MainMenu.instance);
+        _gameModes.Add("LanderGame", LanderGame.instance);
     }
 
     protected override void Initialize()
@@ -77,100 +38,18 @@ public class LunarLander : Game {
         _graphics.PreferredBackBufferHeight = WINDOW_HEIGHT;
         _graphics.PreferredBackBufferWidth = WINDOW_WIDTH;
         _graphics.ApplyChanges();
-
-        levels = new List<Level>(new[] {
-            Level.level1,
-            Level.level2,
-        });
-
-        world = new Image(_graphics.GraphicsDevice, WINDOW_WIDTH, WINDOW_HEIGHT);
         
-        loadLevel(levels[levelIndex]);
-
-        fuelCountText = new Text($"{Math.Ceiling(fuel)}", new Point(266, 5), 16);
-
-        _keyManager.OnHeld(Keys.A, () => {
-            rotateLander(-8);
+        foreach(IGameMode gm in _gameModes.Values) {
+            gm.Initialize(_graphics, WINDOW_WIDTH, WINDOW_HEIGHT);
+        }
+        
+        // this is called even though the game mode has been initialized already in case some initialization is done in the ReInitialize method
+        _gameModes[_currentGameMode].ReInitialize();
+        
+        _keyboardManager.OnPressed(Keys.Escape, () => {
+            ChangeGameMode("MainMenu");
         });
-        _keyManager.OnHeld(Keys.D, () => {
-            rotateLander(8);
-        });
-        _keyManager.OnHeld(Keys.W, () => {
-            thrustLander(false);
-        });
-        _keyManager.OnHeld(Keys.W, () => {
-            thrustLander(true);
-        }, true);
-        _keyManager.OnPressed(Keys.R, () => {
-            levelIndex = 0;
-            fuel = 0;
-            loadLevel(levels[levelIndex]);
-        });
-        _keyManager.OnPressed(Keys.Up, () => {
-            if (godModeStep is 0 or 1) {
-                godModeStep++;
-            }
-            else {
-                godModeStep = 0;
-            }
-        });
-        _keyManager.OnPressed(Keys.Down, () => {
-            if (godModeStep is 2 or 3) {
-                godModeStep++;
-            }
-            else {
-                godModeStep = 0;
-            }
-        });
-        _keyManager.OnPressed(Keys.Left, () => {
-            if (godModeStep is 4 or 6) {
-                godModeStep++;
-            }
-            else {
-                godModeStep = 0;
-            }
-        });
-        _keyManager.OnPressed(Keys.Right, () => {
-            if (godModeStep is 5 or 7) {
-                godModeStep++;
-            }
-            else {
-                godModeStep = 0;
-            }
-        });
-        _keyManager.OnPressed(Keys.B, () => {
-            if (godModeStep is 8) {
-                godModeStep++;
-            }
-            else {
-                godModeStep = 0;
-            }
-        });
-        _keyManager.OnPressed(Keys.A, () => {
-            if (godModeStep is 9) {
-                godModeStep++;
-            }
-            else {
-                godModeStep = 0;
-            }
-        });
-        _keyManager.OnPressed(Keys.Enter, () => {
-            if (godModeStep is 10) {
-                breakThreshold = double.MaxValue;
-            }
-            else {
-                godModeStep = 0;
-            }
-
-            if (levelComplete) {
-                loadLevel(levels[levelIndex]); // level index is incremented in update
-            }
-        });
-
-        // testText = new Text(" !\"#$%&'()*+,-./\n0123456789:;<=>?\n@ABCDEFGHIJKLMNO\nPQRSTUVWXYZ[\\]^_\n`abcdefghijklmno", new Point(10, 200), 16);
-        // testText = new Text("HELLO, WORLD!", new Point(10, 200), 16);
-
-        fuelText = new Text("FUEL REMAINING: ", new Point(10, 5), 16);
+        
         base.Initialize();
     }
 
@@ -179,241 +58,33 @@ public class LunarLander : Game {
         _spriteBatch = new SpriteBatch(GraphicsDevice);
         // Don't need to load any content as we're not using any textures.
         // Everything is vector based. (not texture cringe)
-        meatball = Content.Load<Texture2D>("meatball");
+        foreach(IGameMode gm in _gameModes.Values) {
+            gm.LoadContent(Content);
+        }
     }
 
     protected override void Update(GameTime gameTime)
     {
-        if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
-            Keyboard.GetState().IsKeyDown(Keys.Escape))
-            Exit();
+        _keyboardManager.Update(Keyboard.GetState());
 
-        _keyManager.Update(Keyboard.GetState());
-
-        updateTime = gameTime.ElapsedGameTime.Milliseconds / 1000.0;
-        rotateLock = true;
-        thrustLock = true;
-
-        if (levelComplete) {
-            base.Update(gameTime);
-            return;
-        }
-
-        levelTimer += updateTime;
-
-        if (landerPosition.magnitude() > 20000) {
-            // If the lander is too far away from the center, reset it.
-            loadLevel(currentLevel);
-        }
-
-        if (!isDead) {
-            landerVelocity += gravity * updateTime;
-            landerPosition += landerVelocity * updateTime;
-            currentLevel.translate(landerVelocity * updateTime);
-
-            // check for collisions
-            foreach (Shape s in _shapes) {
-                if (!s.intersects(lander)) continue;
-                // pop the lander out of the shape
-                Point normal = s.contactNormal(lander);
-                // if the lander's velocity relative to the shape is greater than 50, it's dead
-                Point proj = normal.project(landerVelocity);
-                if (landerVelocity.project(normal).magnitude() > breakThreshold) {
-                    isDead = true;
-                    deathCount++;
-                    deadTimer = 0;
-                    landerFragments = new List<Line>(new[] {
-                        new Line(lander.points[0].clone(), lander.points[1].clone()),
-                        new Line(lander.points[1].clone(), lander.points[2].clone()),
-                        new Line(lander.points[2].clone(), lander.points[0].clone())
-                    });
-                    fragmentVelocities = new List<Point>();
-                    fragmentRotations = new List<double>();
-                    foreach (Line _ in landerFragments) {
-                        fragmentVelocities.Add(new Point(rng.NextDouble() * 40 - 20, rng.NextDouble() * 40 - 20) - landerVelocity);
-                        fragmentRotations.Add(rng.NextDouble() * 4 - 2);
-                    }
-                }
-                // zero the lander's velocity in the direction of the normal
-                landerVelocity -= proj;
-                landerVelocity *= 0.94;
-                if (landerVelocity.magnitude() < 6) {
-                    landerVelocity = new Point(0, 0);
-                }
-
-                currentLevel.translate(normal); 
-            }
-        }
-        else {
-            deadTimer += updateTime;
-            for (int i = 0; i < landerFragments.Count; i++) {
-                fragmentVelocities[i] -= gravity * updateTime;
-                landerFragments[i].translate(fragmentVelocities[i] * updateTime);
-                landerFragments[i].rotate(fragmentRotations[i] * updateTime);
-            }
-            if (deadTimer > 2.75) {
-                isDead = false;
-                deadTimer = 0;
-                landerFragments = null;
-                fragmentVelocities = null;
-                fragmentRotations = null;
-                landerVelocity = new Point(0, 0);
-                theta = 0;
-                lander = new Polygon(new List<Point>(new [] { new Point(0, 0), new Point(20, 50), new Point(-20, 50) }));
-                lander.translate(center - lander.getCentroid());
-                currentLevel.translate(-landerPosition);
-                landerPosition = new Point(0, 0);
-            }
-        }
+        _gameModes[_currentGameMode].Update(gameTime);
         
-        // check for level completion
-        if (currentLevel.goal.intersects(lander) && landerVelocity.magnitude() < 3 && !isDead) {
-            levelCompleteTimer += updateTime;
-            if (levelCompleteTimer > 0.5) {
-                levelCompleteText = new Text(
-                    $"COMPLETED LEVEL {levelIndex + 1}!\n" +
-                    $"TIME: {Math.Floor(levelTimer)}.{Math.Round(levelTimer * 100 % 100)}\n" +
-                    $"FUEL USED: {Math.Floor(start_fuel - fuel)}.{Math.Round((start_fuel - fuel) * 100 % 100)}\n" +
-                    $"DEATHS: {deathCount}\n" +
-                    $"{(currentLevel.meatball == null ? "COLLECTED MEATBALL" : "")}\n" +
-                    $"PRESS ENTER TO CONTINUE", 
-                    new Point(10, 200), 16);
-                levelIndex++;
-                if (levelIndex >= levels.Count) {
-                    levelIndex = 0;
-                }
-
-                levelComplete = true;
-                thrustLock = false;
-                rotateLock = false;
-            }
-        }
-        else {
-            levelCompleteTimer = 0;
-        }
-        
-        // check for meatball collisions
-        if (currentLevel.meatball != null && currentLevel.meatball.intersects(lander)) {
-            currentLevel.meatball = null;
-            meatballsCollected++;
-        }
         base.Update(gameTime);
     }
 
     protected override void Draw(GameTime gameTime)
     {
-        GraphicsDevice.Clear(Color.CornflowerBlue);
-        
         _spriteBatch.Begin();
 
-        Point lander_back = lander.getLines()[1].getCentroid();
-        Polygon thrust = new (new List<Point>(new [] { lander_back + new Point(-10, 0), lander_back + new Point(10, 0), lander_back + new Point(0, thrust_graphic * 25) }));
-        Polygon thrust_orange = new (new List<Point>(new [] { lander_back + new Point(-10, 0), lander_back + new Point(10, 0), lander_back + new Point(0, thrust_graphic * 10) }));
-        thrust.rotate(theta, lander_back);
-        thrust_orange.rotate(theta, lander_back);
-        
-        // draw the lander's velocity vector
-        // Drawing.drawLine(world, new Line(lander.getCentroid(), lander.getCentroid() - landerVelocity / 3), Color.Red);
-
-        if (!isDead) {
-            foreach(Shape s in _shapes) {
-                Drawing.drawShape(world, s, Color.White);
-            }
-
-            if (thrust_graphic > 0) {
-                Drawing.drawPolygon(world, thrust, Color.Red, 1);
-                Drawing.drawPolygon(world, thrust_orange, Color.Orange, 1);
-            }
-            Drawing.drawPolygon(world, lander, Color.Aqua, 1);
-        }
-        else {
-            Drawing.drawCircle(world, new Circle(lander.getCentroid(), deadTimer * 100), new Color((int) (100000 / Math.Pow(deadTimer * 100, 2)), 0, 0), 1, true);
-            foreach(Shape s in _shapes) {
-                Drawing.drawShape(world, s, Color.White);
-            }
-            foreach (Line l in landerFragments) {
-                Drawing.drawLine(world, l, Color.Aqua);
-            }
-        }
-        
-        // draw the current level's flagpole as a white line
-        Drawing.drawLine(world, currentLevel.flagpole, Color.White);
-        
-        // draw the current level's flag as a red triangle
-        Drawing.drawPolygon(world, currentLevel.flag, Color.Red);
-
-        if (levelComplete) {
-            foreach (Line l in levelCompleteText.Lines) {
-                Drawing.drawLine(world, l, Color.White);
-            }
-        }
-        
-        string newFuelText = Math.Ceiling(fuel).ToString(CultureInfo.InvariantCulture);
-        if (newFuelText != fuelCountString) {
-            fuelCountText.setText(newFuelText);
-            fuelCountString = newFuelText;
-        }
-        
-        foreach(Line l in fuelCountText.Lines) {
-            Drawing.drawLine(world, l, Color.Orange);
-        }
-        
-        foreach(Line l in fuelText.Lines) {
-            Drawing.drawLine(world, l, Color.White);
-        }
-        
-        _spriteBatch.Draw(world.toTexture2D(), Vector2.Zero, Color.White);
-
-        if (currentLevel.meatball != null) {
-            _spriteBatch.Draw(meatball, currentLevel.meatball.getCentroid().toVector2() - Vector2.One * 25, null, Color.White, 0, new Vector2(0, 0), new Vector2(0.125f, 0.125f), SpriteEffects.None, 0);
-        }
-        
-        world.reset();
+        _gameModes[_currentGameMode].Draw(_spriteBatch, gameTime);
 
         _spriteBatch.End();
 
         base.Draw(gameTime);
     }
     
-    public void rotateLander(double angle) {
-        if (!rotateLock) return;
-        lander.rotate(angle * updateTime);
-        theta += angle * updateTime;
-        rotateLock = false;
-    }
-
-    public void thrustLander(bool reverse) {
-        if (!thrustLock) return;
-        if (reverse || fuel <= 0) {
-            thrust_graphic -= updateTime * 10;
-            thrust_graphic = Math.Max(0, thrust_graphic);
-        }
-        else {
-            thrust_graphic += updateTime * 10;
-            if (thrust_graphic > 1.1) {
-                thrust_graphic -= rng.NextDouble() * (thrust_graphic / 2);
-            }
-            landerVelocity += new Point(thrust_power * -Math.Sin(theta), thrust_power * Math.Cos(theta)) * updateTime;
-            fuel -= updateTime;
-        }
-        thrustLock = false;
-    }
-
-    public void loadLevel(Level level) {
-        levelTimer = 0;
-        levelComplete = false;
-        deathCount = 0;
-        level.reset();
-        currentLevel = level;
-        _shapes = level.shapes;
-        theta = 0;
-        lander = new Polygon(new List<Point>(new [] { new Point(0, 0), new Point(20, 50), new Point(-20, 50) }));
-        lander.translate(center - lander.getCentroid());
-        landerPosition = level.start - center;
-        landerVelocity = new Point(0, 0);
-        level.translate(-landerPosition);
-        landerPosition = new Point(0, 0);
-        fuel += level.fuel;
-        start_fuel = fuel;
+    public void ChangeGameMode(string newGameMode) {
+        _currentGameMode = newGameMode;
+        _gameModes[_currentGameMode].ReInitialize();
     }
 }

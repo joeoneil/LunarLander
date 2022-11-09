@@ -1,7 +1,6 @@
 using System;
 using LunarLander.graphics;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 
 namespace LunarLander.geometry2d; 
 
@@ -181,7 +180,20 @@ public static class Drawing {
         }
     }
     
+    public static void fill(Image image, Color color, int x, int y, int width, int height) {
+        image.texture_changed = true;
+        for (int i = x; i < x + width; i++) {
+            for (int j = y; j < y + height; j++) {
+                image.setPixel((uint) i, (uint) j, color);
+            }
+        }
+    }
+    
     public static void fill(Image image) {
         fill(image, defaultBG);
+    }
+    
+    public static void fill(Image image, int x, int y, int width, int height) {
+        fill(image, defaultBG, x, y, width, height);
     }
 }

@@ -14,11 +14,16 @@ public class Image {
     public Texture2D texture { get; private set; }
     
     public Image(GraphicsDevice g, uint width, uint height) {
-        this.texture = new Texture2D(g, (int) width, (int) height);
+        texture = new Texture2D(g, (int)width, (int)height);
         this.buffer = new Color[width * height];
         this.width = width;
         this.height = height;
-        this.reset();
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
+                buffer[x + y * width] = Color.Black;
+            }
+        }
+        texture.SetData(buffer); // initialize texture buffer
     }
 
     public void reset() {
@@ -27,13 +32,13 @@ public class Image {
     }
     
     public void setPixel(uint x, uint y, Color color) {
-        buffer[y * width + x] = color;
+        buffer[x + y * width] = color;
     }
     
     public Color getPixel(uint x, uint y) {
         return buffer[y * width + x];
     }
-    
+
     public Texture2D toTexture2D() {
         if (!texture_changed) return texture;
         texture.SetData(buffer);
