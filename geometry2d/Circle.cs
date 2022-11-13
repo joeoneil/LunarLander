@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace LunarLander.geometry2d; 
@@ -92,5 +93,18 @@ public class Circle : Shape{
 
             return t2 is >= 0 and <= 1;
         }
+    }
+
+    public Polygon greeble(int n, double maxDeviation) {
+        List<Point> points = new ();
+        for (int i = 0; i < n; i++) {
+            double angle = i * 2 * Math.PI / n;
+            double x = center.x + radius * Math.Cos(angle);
+            double y = center.y + radius * Math.Sin(angle);
+            Point normal = new (x - center.x, y - center.y);
+            Point p = new (x + normal.x * maxDeviation * (2 * new Random().NextDouble() - 1), y + normal.y * maxDeviation * (2 * new Random().NextDouble() - 1));
+            points.Add(p);
+        }
+        return new Polygon(points);
     }
 }

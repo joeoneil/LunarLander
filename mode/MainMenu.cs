@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using LunarLander.audio;
 using LunarLander.data;
 using LunarLander.geometry2d;
 using LunarLander.graphics;
@@ -68,8 +69,8 @@ public class MainMenu : IGameMode {
 
         menuItems = new List<MenuItem> {
             new ("LanderGame"),
-            new (null),
-            new (null),
+            new ("Racing"),
+            new ("AsteroidsGame"),
             new (null),
             new (null),
             new (null),
@@ -102,6 +103,7 @@ public class MainMenu : IGameMode {
         }
         
         _inputManager.onPressed(up, () => {
+            RP2A03_API.pulsePlayNote(0, 9, 3, 2, 2);
             switch (selectedItem) {
                 case > 0:
                     selectedItem--;
@@ -115,6 +117,7 @@ public class MainMenu : IGameMode {
             }
         });
         _inputManager.onPressed(down, () => {
+            RP2A03_API.pulsePlayNote(0, 9, 3, 2, 2);
             if (selectedItem == menuItems.Count - 1) {
                 selectedItem = 0;
             }
@@ -123,6 +126,7 @@ public class MainMenu : IGameMode {
             }
         });
         _inputManager.onPressed(enter, () => {
+            RP2A03_API.pulsePlayNote(0, 9, 2, 4, 4);
             if (selectedItem == -1) return;
             switch (menuItems[selectedItem].internalName) {
                 case null:

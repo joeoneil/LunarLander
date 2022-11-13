@@ -112,4 +112,11 @@ public class Point
     public Vector2 toVector2() {
         return new Vector2((float)x, (float)y);
     }
+
+    public void cap(double magnitude) {
+        if (this.magnitude() <= magnitude) return;
+        this.normalize();
+        this.x *= magnitude;
+        this.y *= magnitude;
+    }
 }

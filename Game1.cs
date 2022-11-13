@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
+using LunarLander.audio;
 using LunarLander.mode;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -31,6 +33,8 @@ public class LunarLander : Game {
 
         _gameModes.Add("MainMenu", MainMenu.instance);
         _gameModes.Add("LanderGame", LanderGame.instance);
+        _gameModes.Add("Racing", Racing.instance);
+        _gameModes.Add("AsteroidsGame", AsteroidsGame.instance);
     }
 
     protected override void Initialize()
@@ -38,18 +42,30 @@ public class LunarLander : Game {
         _graphics.PreferredBackBufferHeight = WINDOW_HEIGHT;
         _graphics.PreferredBackBufferWidth = WINDOW_WIDTH;
         _graphics.ApplyChanges();
+
+        RP2A03.start();
+
+        RP2A03_API.setNoiseMode(true);
+        Thread.Sleep(10); // init lfsr
         
+        RP2A03_API.setPulse1(true);
+        RP2A03_API.setPulse2(true);
+        RP2A03_API.setTriangle(true);
+        RP2A03_API.setNoise(true);
+        RP2A03_API.pulsePlayNote(0, 440.0, -1, 15);
+
         foreach(IGameMode gm in _gameModes.Values) {
             gm.Initialize(_graphics, WINDOW_WIDTH, WINDOW_HEIGHT);
         }
         
-        // this is called even though the game mode has been initialized already in case some initialization is done in the ReInitialize method
+        // this is called even though the game mode has been initialized already in case some initialization
+        // is done in the ReInitialize method that is not done in the initialize method
         _gameModes[_currentGameMode].ReInitialize();
         
         _keyboardManager.OnPressed(Keys.Escape, () => {
             ChangeGameMode("MainMenu");
         });
-        
+
         base.Initialize();
     }
 
@@ -66,6 +82,7 @@ public class LunarLander : Game {
     protected override void Update(GameTime gameTime)
     {
         _keyboardManager.Update(Keyboard.GetState());
+        
 
         _gameModes[_currentGameMode].Update(gameTime);
         

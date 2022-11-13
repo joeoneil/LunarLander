@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
+using System.Threading;
+using LunarLander.audio;
 using LunarLander.data;
 using LunarLander.geometry2d;
 using LunarLander.graphics;
@@ -25,8 +28,9 @@ public class LanderGame : IGameMode {
     private static List<Point> fragmentVelocities;
     private static List<double> fragmentRotations;
     private static double deadTimer;
+    private static double invulnTimer;
     private static int deathCount;
-    
+
     private static Point landerVelocity = new (0, 0);
     private static Point landerPosition = new (0, 0);
     private static readonly Point gravity = new (0, -32.4);
@@ -46,6 +50,7 @@ public class LanderGame : IGameMode {
 
     private static double breakThreshold = 15;
     private static int godModeStep;
+    private static bool godMode;
     
     private static Image world;
     private static Level currentLevel;
@@ -57,6 +62,10 @@ public class LanderGame : IGameMode {
     private static bool levelComplete;
     private static Text levelCompleteText;
 
+    private static double totalTime;
+    private static double totalFuel;
+    private static int totalDeaths;
+
     public static Texture2D meatball;
     public static int meatballsCollected { get; private set; }
 
@@ -65,6 +74,7 @@ public class LanderGame : IGameMode {
     public static LanderGame instance { get; } = new ();
     
 #if RELEASE
+    // TODO: Update Devcade bindings once controller design is finalized
     private static readonly CompoundButton _thrust = CompoundButton.fromGeneric(GenericButton.DevA1);
     private static readonly CompoundButton _rotateLeft = CompoundButton.fromGeneric(GenericButton.DevA2);
     private static readonly CompoundButton _rotateRight = CompoundButton.fromGeneric(GenericButton.DevA3);
@@ -164,7 +174,8 @@ public class LanderGame : IGameMode {
         });
         _inputManager.onPressed(_start, () => {
             if (godModeStep is 10) {
-                breakThreshold = double.MaxValue;
+                godMode = true;
+                fuel += 9999;
             }
             else {
                 godModeStep = 0;
@@ -183,7 +194,10 @@ public class LanderGame : IGameMode {
 
     public void ReInitialize() {
         // do nothing
+        godModeStep = 0;
+        godMode = false;
         levelIndex = 0;
+        fuel = 0;
         loadLevel(levels[levelIndex]);
     }
 
@@ -204,6 +218,7 @@ public class LanderGame : IGameMode {
         }
 
         levelTimer += updateTime;
+        invulnTimer -= updateTime;
 
         if (landerPosition.magnitude() > 20000) {
             // If the lander is too far away from the center, reset it.
@@ -222,7 +237,8 @@ public class LanderGame : IGameMode {
                 Point normal = s.contactNormal(lander);
                 // if the lander's velocity relative to the shape is greater than 50, it's dead
                 Point proj = normal.project(landerVelocity);
-                if (landerVelocity.project(normal).magnitude() > breakThreshold) {
+                if (landerVelocity.project(normal).magnitude() > breakThreshold && invulnTimer < 0 && !godMode) {
+                    RP2A03_API.noisePlayNote(15, 200, 15);
                     isDead = true;
                     deathCount++;
                     deadTimer = 0;
@@ -239,7 +255,9 @@ public class LanderGame : IGameMode {
                     }
                 }
                 // zero the lander's velocity in the direction of the normal
+                double mag = landerVelocity.magnitude();
                 landerVelocity -= proj;
+                landerVelocity.cap(mag); // cap the velocity to the original magnitude
                 landerVelocity *= 0.94;
                 if (landerVelocity.magnitude() < 6) {
                     landerVelocity = new Point(0, 0);
@@ -258,6 +276,7 @@ public class LanderGame : IGameMode {
             if (deadTimer > 2.75) {
                 isDead = false;
                 deadTimer = 0;
+                invulnTimer = 2.5;
                 landerFragments = null;
                 fragmentVelocities = null;
                 fragmentRotations = null;
@@ -286,6 +305,9 @@ public class LanderGame : IGameMode {
                         "PRESS ENTER TO CONTINUE",
                     #endif
                     new Point(10, 200), 16);
+                    totalTime += levelTimer;
+                    totalFuel += start_fuel - fuel;
+                    totalDeaths += deathCount;
                 levelIndex++;
                 if (levelIndex >= levels.Count) {
                     levelIndex = 0;
@@ -327,7 +349,13 @@ public class LanderGame : IGameMode {
                 Drawing.drawPolygon(world, thrust, Color.Red);
                 Drawing.drawPolygon(world, thrust_orange, Color.Orange);
             }
-            Drawing.drawPolygon(world, lander, Color.Aqua);
+
+            if (invulnTimer > 0) {
+                Drawing.drawPolygon(world, lander, invulnTimer % 0.4 < 0.2 ? Color.Aqua : Color.Aquamarine);
+            }
+            else {
+                Drawing.drawPolygon(world, lander, Color.Aqua);
+            }
         }
         else {
             Drawing.drawCircle(world, new Circle(lander.getCentroid(), deadTimer * 100), new Color((int) (100000 / Math.Pow(deadTimer * 100, 2)), 0, 0), 1, true);
@@ -392,10 +420,16 @@ public class LanderGame : IGameMode {
     private static void thrustLander(bool reverse) {
         if (!thrustLock) return;
         if (reverse || fuel <= 0) {
+            if (!isDead) {
+                RP2A03_API.noisePlayNote(13, 1, 0, true);
+            }
             thrust_graphic -= updateTime * 10;
             thrust_graphic = Math.Max(0, thrust_graphic);
         }
         else {
+            if (!isDead) {
+                RP2A03_API.noisePlayNote(13, 1, 3, true);
+            }
             thrust_graphic += updateTime * 10;
             if (thrust_graphic > 1.1) {
                 thrust_graphic -= LunarLander.rng.NextDouble() * (thrust_graphic / 2);
@@ -408,6 +442,7 @@ public class LanderGame : IGameMode {
 
     private static void loadLevel(Level level) {
         levelTimer = 0;
+        invulnTimer = 2.5;
         levelComplete = false;
         deathCount = 0;
         level.reset();
