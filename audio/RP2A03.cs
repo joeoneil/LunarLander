@@ -1,19 +1,12 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
-using System.IO;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Security;
 using System.Threading;
-using Microsoft.Xna.Framework.Audio;
-using Microsoft.Xna.Framework.Input;
 
 namespace LunarLander.audio; 
 
 public static class RP2A03 {
     
+    #region state
     public static readonly byte[] lengthTable = { 
     //   0     1     2     3     4     5     6     7     8     9     A     B     C     D     E     F    
         0x0A, 0xFE, 0x14, 0x02, 0x28, 0x04, 0x50, 0x06, 0xA0, 0x08, 0x3C, 0x0A, 0x0E, 0x0C, 0x1A, 0x0E, // 00-0F
@@ -43,18 +36,27 @@ public static class RP2A03 {
     
     public const double clockRate = 1789773.0; // 1.789773 MHz
 
+    public static double testFreq = 240;
+
+    public static double gain = 2;
+
+    public static bool running { get; private set; } = false;
+    
+    #endregion
+
+    #region subcomponents
     private class Divider {
-        public byte count { get; private set; }
-        private byte period { get; set; }
+        public short count { get; private set; }
+        private short period { get; set; }
         private bool loop { get; set; }
 
-        public Divider(byte period, bool loop) {
+        public Divider(short period, bool loop) {
             this.period = period;
             this.loop = loop;
             this.count = period;
         }
 
-        public void load(byte period) {
+        public void load(short period) {
             this.period = period;
             this.count = period;
         }
@@ -103,7 +105,7 @@ public static class RP2A03 {
         }
 
         public byte get() {
-            return divider.count;
+            return (byte)divider.count;
         }
     }
     private class Envelope {
@@ -227,7 +229,6 @@ public static class RP2A03 {
             return raw_period;
         }
     }
-
     private class Sequencer {
         private byte[] sequence { get; set; }
         private byte index { get; set; }
@@ -249,19 +250,21 @@ public static class RP2A03 {
             return sequence[index];
         }
     }
+    #endregion
+    
+    #region channels
     private class Pulse {
         private int channel { get; set; } // 0: pulse 1, 1: pulse 2
         private bool enabled { get; set; }
 
         private byte duty { get; set; }
         private short raw_period { get; set; }
-
-        private double cycles;
         
         private LengthCounter lengthCounter { get; set; }
         private Envelope envelope { get; set; }
         private Sweep sweep { get; set; }
         private Sequencer sequencer { get; set; }
+        private Divider divider { get; set; }
 
         public Pulse(int channel) {
             if (channel is not (0 or 1)) {
@@ -276,7 +279,7 @@ public static class RP2A03 {
             this.sweep = new Sweep(false, 0, false, 0, channel == 1);
             this.sequencer = new Sequencer(new byte[] { 0, 1, 2, 3, 4, 5, 6, 7 });
             this.enabled = true;
-            this.cycles = 0;
+            this.divider = new Divider(0, false);
             // real initialization is in reset method
             this.reset();
         }
@@ -300,11 +303,13 @@ public static class RP2A03 {
                 (byte)(registers[0x01 + channel * 4] & 0x07),
                 channel == 1                        
             );
+            this.divider = new Divider(raw_period, true);
             this.enabled = readFlag(0x15, channel == 0 ? 0 : 1);
         }
 
         public void updateEnvelope() {
             // Called when $4000 or $4004 is written to
+            this.duty = (byte)((registers[0x00 + channel * 4] & 0xC0) >> 6);
             envelope.load((byte)(registers[0x00 + channel * 4] & 0x0F));
             envelope.setLoop((registers[0x00 + channel * 4] & 0x20) != 0);
             envelope.setConstant((registers[0x00 + channel * 4] & 0x10) != 0);
@@ -321,6 +326,7 @@ public static class RP2A03 {
         public void updatePeriod() {
             // Called when $4002 or $4006 is written to
             raw_period = (short)(((registers[0x03 + channel * 4] & 0x07) << 8) | (registers[0x02 + channel * 4]));
+            divider.load(raw_period);
         }
         
         public void updateLengthCounter() {
@@ -344,39 +350,29 @@ public static class RP2A03 {
         public void clockQuarterFrame() {
             envelope.clock();
         }
+
+        public void clock() {
+            if (divider.clock()) {
+                sequencer.clock();
+            }
+        }
         
         public byte get() {
             if (!enabled) return 0;
             if (lengthCounter.get() == 0) return 0;
-            return raw_period is < 8 or > 0x7FF ? (byte)0 : envelope.get();
-        }
-
-        public byte[] getSamples() {
-            if (!enabled) return new byte[200];
-            if (lengthCounter.get() == 0) return new byte[200];
-            if (raw_period is < 8 or > 0x7FF) return new byte[200];
-            byte[] samples = new byte[200];
-            for(int i = 0; i < 200; i++) {
-                cycles += clockRate / 96000; // Pulse runs on the APU clock which is half the speed of the CPU clock
-                if (cycles >= raw_period) {
-                    cycles -= raw_period;
-                    sequencer.clock();
-                }
-                samples[i] = (byte)(envelope.get() * (dutyTable[duty][sequencer.get()] ? 1 : 0));
-            }
-            return samples;
+            if (raw_period is < 8 or > 0x7FF) return 0;
+            return dutyTable[duty][sequencer.get()] ? envelope.get() : (byte)0;
         }
     }
     private class Triangle {
         
         private bool enabled { get; set; }
         private short raw_period { get; set; }
-        private double cycles { get; set; }
-
         private LengthCounter lengthCounter { get; set; }
         private LengthCounter linearCounter { get; set; }
         
         private Sequencer sequencer { get; set; }
+        private Divider divider { get; set; }
         private byte[] samples { get; set; }
         
         public Triangle() {
@@ -388,8 +384,8 @@ public static class RP2A03 {
                 0xF, 0xE, 0xD, 0xC, 0xB, 0xA, 0x9, 0x8, 0x7, 0x6, 0x5, 0x4, 0x3, 0x2, 0x1, 0x0,
                 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF,
             });
+            this.divider = new Divider(0, false);
             this.samples = new byte[200];
-            this.cycles = 0;
             this.reset();
         }
         
@@ -403,12 +399,14 @@ public static class RP2A03 {
                 (byte)(registers[0x08] & 0x7F),
                 (registers[0x06] & 0x80) != 0
             );
+            this.divider = new Divider(raw_period, true);
             this.enabled = readFlag(0x15, 2);
         }
         
         public void updatePeriod() {
             // Called when $400A is written to
             raw_period = (short)(((registers[0x0B] & 0x07) << 8) | registers[0x0A]);
+            this.divider = new Divider(raw_period, true);
         }
         
         public void updateLengthCounter() {
@@ -435,39 +433,38 @@ public static class RP2A03 {
         public void clockQuarterFrame() {
             // No-op
         }
-        
-        public byte[] getSamples() {
-            if (!enabled) return new byte[200];
-            if (linearCounter.get() == 0 || lengthCounter.get() == 0) return new byte[200];
-            for (int i = 0; i < samples.Length; i++) {
-                cycles += clockRate / 48000;
-                while (cycles >= raw_period) {
-                    cycles -= raw_period;
-                    sequencer.clock();
-                }
-                samples[i] = sequencer.get();
+
+        public void clock() {
+            if (divider.clock()) {
+                sequencer.clock();
             }
-            return samples;
+            if (divider.clock()) {
+                sequencer.clock();
+            }
+        }
+
+        public byte get() {
+            if (!enabled) return 0;
+            if (linearCounter.get() == 0 || lengthCounter.get() == 0) return 0;
+            return sequencer.get();
         }
     }
     private class Noise {
         private bool enabled { get; set; }
         private short timer_period { get; set; }
-        private double cycles { get; set; }
-        private double sampleCycles { get; set; }
 
         private LengthCounter lengthCounter { get; set; }
+        private Divider divider { get; set; }
         private Envelope envelope { get; set; }
         private LFSR lfsr { get; set; }
         
         public Noise() {
             this.timer_period = 0;
-            this.cycles = 0;
-            this.sampleCycles = 0;
             this.lengthCounter = new LengthCounter(0, false);
             this.envelope = new Envelope(0, false, false);
             this.lfsr = new LFSR(false);
             this.enabled = true;
+            this.divider = new Divider(0, false);
             this.reset();
         }
 
@@ -484,6 +481,7 @@ public static class RP2A03 {
             );
             this.lfsr = new LFSR(readFlag(0x0E, 7));
             this.enabled = readFlag(0x15, 3);
+            this.divider = new Divider(timer_period, true);
         }
         
         public void updateEnvelope() {
@@ -498,6 +496,7 @@ public static class RP2A03 {
             // Called when $400E is written to
             lfsr.setMode((registers[0x0E] & 0x80) != 0);
             timer_period = timerPeriodTable[registers[0x0E] & 0x0F];
+            divider.load(timer_period);
         }
 
         public void updateLFSR() {
@@ -519,29 +518,22 @@ public static class RP2A03 {
         }
         
         public void clockQuarterFrame() {
-            this.cycles += clockRate / 240;
-            for(int i = 0; i < this.cycles; i++) {
-                lfsr.clock();
-            }
-            this.cycles -= (int)this.cycles;
             envelope.clock();
         }
 
-        public byte[] getSamples() {
-            if (!enabled) return new byte[200];
-            if (lengthCounter.get() == 0) return new byte[200];
-            byte[] samples = new byte[200];
-            for (int i = 0; i < samples.Length; i++) {
-                sampleCycles += clockRate / 48000;
-                while (sampleCycles >= timer_period) {
-                    sampleCycles -= timer_period;
-                    lfsr.clock();
-                }
-                samples[i] = (byte)(envelope.get() * (lfsr.get() ? 0 : 1));
+        public void clock() {
+            if (divider.clock()) {
+                lfsr.clock();
             }
-            return samples;
+        }
+
+        public byte get() {
+            if (!enabled) return 0;
+            if (lengthCounter.get() == 0) return 0;
+            return (byte)(envelope.get() * (lfsr.get() ? 0 : 1));
         }
     }
+    #endregion
 
     private static Pulse pulse1 = new (0);
     private static Pulse pulse2 = new (1);
@@ -640,60 +632,66 @@ public static class RP2A03 {
     
     public static void start() {
         // create a separate thread for the RP2A03
-        Thread t = new (Run);
+        Thread t = new (clock);
         t.Start();
         t.IsBackground = true;
     }
-    
-    private static void Run() {
-        const double f = 240; // Hz
+
+    private static void clock() {
+        running = true;
+        const double f = clockRate / 2;
         double durationTicks = Math.Round((1 / f) * Stopwatch.Frequency);
         var sw = Stopwatch.StartNew();
         int tick = 0;
+        const double ticksPerSample = (1 / 48000.0) * (clockRate / 2);
+        double nextSample = 0;
         while (true) {
-            bool mode = readFlag(0x17, 7);
-            if (!mode) { // 4 step mode
-                clockQuarterFrame();
-                if (tick % 2 == 0) {
-                    clockHalfFrame();
-                }
-            }
-            else { // 5 step mode
-                if (tick != 3) {
-                    clockQuarterFrame();
-                }
-                if (tick is 1 or 4) {
-                    clockHalfFrame();
-                }
-            }
             tick++;
-            tick %= mode ? 5 : 4;
-            // create audio samples
-            byte[] p1 = pulse1.getSamples();
-            byte[] p2 = pulse2.getSamples();
-            byte[] t = triangle.getSamples();
-            byte[] n = noise.getSamples();
-            byte[] buffer = new byte[400];
-            for (int i = 0; i < 200; i++) {
-                double pulse = 95.88 / (8128.0 / (p1[i] + p2[i]) + 100);
-                double tnd = 159.79 / (1.0 / (t[i] / 8227.0 + n[i] / 12241.0) + 100);
-                double sample = pulse + tnd;
-                short s = (short)(sample * 32767);
-                buffer[2 * i] = (byte)(s & 0xFF);
-                buffer[2 * i + 1] = (byte)(s >> 8);
+            if (tick > 14915) {
+                tick = 0;
+                nextSample = 0;
             }
-            // for (int i = 0; i < 200; i++) {
-            //     // buffer is at 48kHz
-            //     short val = (short)((Math.Sin((2 * Math.PI * 240) * (i / 48000.0)) * 0x7FFF) + 0x7FFF);
-            //     buffer[2 * i] = (byte)(val & 0xFF);
-            //     buffer[2 * i + 1] = (byte)(val >> 8);
-            // }
-            AudioBuffer.write(buffer);
-            while(sw.ElapsedTicks < durationTicks) {
+            switch (tick) {
+                case 0:
+                    clockQuarterFrame();
+                    clockHalfFrame();
+                    break;
+                case 3729:
+                    clockQuarterFrame();
+                    break;
+                case 7456:
+                    clockQuarterFrame();
+                    clockHalfFrame();
+                    break;
+                case 11185:
+                    clockQuarterFrame();
+                    break;
+            }
+            pulse1.clock();
+            pulse2.clock();
+            triangle.clock();
+            noise.clock();
+            if (tick > nextSample) {
+                nextSample += ticksPerSample;
+                byte p1 = pulse1.get();
+                byte p2 = pulse2.get();
+                byte t = triangle.get();
+                byte n = noise.get();
+                double pulse = 95.88 / (8128.0 / (p1 + p2) + 100);
+                double tnd = 159.79 / (1.0 / (t / 8227.0 + n / 12241.0) + 100);
+                double sample = (pulse + tnd) * gain;
+                sample = Math.Max(-1, Math.Min(1, sample));
+                short s = (short)(sample * 0x7FFF);
+                AudioBuffer.write(s);
+                if (!LunarLander.running) { // only check in sample loop to reduce performance impact
+                    running = false;
+                    return;
+                }
+            }
+            while(durationTicks > sw.ElapsedTicks) {
                 // spin
             }
-            sw.Reset();
-            sw.Start();
+            sw.Restart();
         }
     }
 }

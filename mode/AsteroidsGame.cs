@@ -19,8 +19,6 @@ public class AsteroidsGame : IGameMode {
     private static double songTimer = 0;
     private static int noteIndex = 0;
     
-    private static Song song = Song.mario;
-    
 #if RELEASE
     // TODO: Update Devcade bindings once controller design is finalized
     private static readonly CompoundButton _thrust = CompoundButton.fromGeneric(GenericButton.DevA1);
@@ -45,10 +43,6 @@ public class AsteroidsGame : IGameMode {
         inputManager.update(Keyboard.GetState());
         
         songTimer += gameTime.TotalGameTime.Milliseconds / 1000.0;
-        if (songTimer > song.noteStartTime(noteIndex)) {
-            RP2A03_API.pulsePlayNote(0, song.notePitch(noteIndex), song.noteOctave(noteIndex),
-                (int)(song.noteDuration(noteIndex) * 1000), 7);
-        }
     }
 
     public void Draw(SpriteBatch spriteBatch, GameTime gameTime) {

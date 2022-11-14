@@ -21,6 +21,7 @@ public class Text {
     }
 
     public void setText(string text) {
+        if (this.text == text) return;
         this.text = text;
         int x = 0;
         int y = 0;

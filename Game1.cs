@@ -20,10 +20,12 @@ public class LunarLander : Game {
     
     private readonly GraphicsDeviceManager _graphics; 
     private SpriteBatch _spriteBatch;
-    private readonly KeyboardManager _keyboardManager = new();
+    private readonly InputManager _keyboardManager = new();
     
     private readonly Dictionary<string, IGameMode> _gameModes = new();
     private string _currentGameMode = "MainMenu";
+
+    public static bool running { get; private set; } = true;
     public LunarLander() {
         instance = this;
         
@@ -35,6 +37,10 @@ public class LunarLander : Game {
         _gameModes.Add("LanderGame", LanderGame.instance);
         _gameModes.Add("Racing", Racing.instance);
         _gameModes.Add("AsteroidsGame", AsteroidsGame.instance);
+        #if RELEASE
+        #else
+        _gameModes.Add("Oscilloscope", Oscilliscope.instance);
+        #endif
     }
 
     protected override void Initialize()
@@ -52,7 +58,8 @@ public class LunarLander : Game {
         RP2A03_API.setPulse2(true);
         RP2A03_API.setTriangle(true);
         RP2A03_API.setNoise(true);
-        RP2A03_API.pulsePlayNote(0, 440.0, -1, 15);
+        RP2A03_API.pulsePlayNote(0, 440.0, 1);
+        RP2A03_API.pulsePlayNote(1, 440.0, 1);
 
         foreach(IGameMode gm in _gameModes.Values) {
             gm.Initialize(_graphics, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -62,7 +69,7 @@ public class LunarLander : Game {
         // is done in the ReInitialize method that is not done in the initialize method
         _gameModes[_currentGameMode].ReInitialize();
         
-        _keyboardManager.OnPressed(Keys.Escape, () => {
+        _keyboardManager.onPressed(GenericButton.KeyEscape, () => {
             ChangeGameMode("MainMenu");
         });
 
@@ -81,7 +88,7 @@ public class LunarLander : Game {
 
     protected override void Update(GameTime gameTime)
     {
-        _keyboardManager.Update(Keyboard.GetState());
+        _keyboardManager.update(Keyboard.GetState());
         
 
         _gameModes[_currentGameMode].Update(gameTime);

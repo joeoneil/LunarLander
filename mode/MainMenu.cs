@@ -74,6 +74,10 @@ public class MainMenu : IGameMode {
             new (null),
             new (null),
             new (null),
+            #if RELEASE
+            #else
+            new ("Oscilloscope"),
+            #endif
             new ("Exit")
         };
         
@@ -85,6 +89,10 @@ public class MainMenu : IGameMode {
             "GRAVITAR",
             "LEVEL SELECT",
             "LEADERBOARD",
+            #if RELEASE
+            #else
+            "OSCILLOSCOPE",
+            #endif
             "EXIT"
         });
         

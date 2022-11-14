@@ -69,6 +69,8 @@ public class LanderGame : IGameMode {
     public static Texture2D meatball;
     public static int meatballsCollected { get; private set; }
 
+    private static readonly Dictionary<string, Song> songs = new();
+
     private LanderGame() { }
 
     public static LanderGame instance { get; } = new ();
@@ -101,6 +103,8 @@ public class LanderGame : IGameMode {
             Level.level2,
             Level.level3,
         });
+        
+        songs.Add("win", Song.song1);
 
         center = new Point(WINDOW_WIDTH / 2.0, WINDOW_HEIGHT / 2.0);
 
@@ -119,6 +123,17 @@ public class LanderGame : IGameMode {
         });
         _inputManager.onHeld(!_thrust, () => {
             thrustLander(true);
+        });
+        _inputManager.onPressed(_thrust, () => {
+            if (!isDead) {
+                RP2A03_API.noisePlayNote(13, 1, 3, true);
+                RP2A03_API.noisePlayNote(13, -1, 3, true);
+            }
+        });
+        _inputManager.onReleased(_thrust, () => {
+            if (!isDead) {
+                RP2A03_API.noisePlayNote(13, 1, 0, true);
+            }
         });
         _inputManager.onPressed(_reset, () => {
             fuel = start_fuel - currentLevel.fuel;
@@ -182,6 +197,7 @@ public class LanderGame : IGameMode {
             }
 
             if (levelComplete) {
+                songs["win"].stop();
                 loadLevel(levels[levelIndex]); // level index is incremented in update
             }
         });
@@ -212,6 +228,10 @@ public class LanderGame : IGameMode {
         updateTime = gameTime.ElapsedGameTime.Milliseconds / 1000.0;
         rotateLock = true;
         thrustLock = true;
+        
+        foreach(Song s in songs.Values) {
+            s.update();
+        }
 
         if (levelComplete) {
             return;
@@ -238,7 +258,7 @@ public class LanderGame : IGameMode {
                 // if the lander's velocity relative to the shape is greater than 50, it's dead
                 Point proj = normal.project(landerVelocity);
                 if (landerVelocity.project(normal).magnitude() > breakThreshold && invulnTimer < 0 && !godMode) {
-                    RP2A03_API.noisePlayNote(15, 200, 15);
+                    RP2A03_API.noisePlayNote(14, 200, 15);
                     isDead = true;
                     deathCount++;
                     deadTimer = 0;
@@ -293,6 +313,7 @@ public class LanderGame : IGameMode {
         if (currentLevel.goal.intersects(lander) && landerVelocity.magnitude() < 3 && !isDead) {
             levelCompleteTimer += updateTime;
             if (levelCompleteTimer > 0.5) {
+                songs["win"].play();
                 levelCompleteText = new Text(
                     $"COMPLETED LEVEL {levelIndex + 1}!\n" +
                     $"TIME: {Math.Floor(levelTimer)}.{Math.Round(levelTimer * 100 % 100)}\n" +
@@ -420,16 +441,10 @@ public class LanderGame : IGameMode {
     private static void thrustLander(bool reverse) {
         if (!thrustLock) return;
         if (reverse || fuel <= 0) {
-            if (!isDead) {
-                RP2A03_API.noisePlayNote(13, 1, 0, true);
-            }
             thrust_graphic -= updateTime * 10;
             thrust_graphic = Math.Max(0, thrust_graphic);
         }
         else {
-            if (!isDead) {
-                RP2A03_API.noisePlayNote(13, 1, 3, true);
-            }
             thrust_graphic += updateTime * 10;
             if (thrust_graphic > 1.1) {
                 thrust_graphic -= LunarLander.rng.NextDouble() * (thrust_graphic / 2);

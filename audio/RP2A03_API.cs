@@ -1,9 +1,34 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework.Input;
 
 namespace LunarLander.audio; 
 
 public static class RP2A03_API {
+    
+    #region Note Structs
+
+    public struct PulseNote {
+        public int channel { get; private set; }
+        public int note { get; private set; }
+        public int octave { get; private set; }
+        public int duration { get; private set; }
+        public int envelope { get; private set; }
+        public bool cv { get; private set; }
+        public int duty { get; private set; }
+
+        public PulseNote(int channel, int note, int octave, int duration = 1, int envelope = 15, bool cv = true,
+            int duty = 2) {
+            this.channel = channel;
+            this.note = note;
+            this.octave = octave;
+            this.duration = duration;
+            this.envelope = envelope;
+            this.cv = cv;
+            this.duty = duty;
+        }
+    }
+    #endregion
     
     #region Helper Functions
     /// /////////////////////////////////////////////////////////////////////
@@ -141,7 +166,7 @@ public static class RP2A03_API {
     /// /////////////////////////////////////////////////////////////////////
     public static void pulsePlayNote(int channel, double frequency, int durationMillis, byte envelope = 15, bool cv = false, byte duty = 2) {
         setPulseTimer(channel, (short)(RP2A03.clockRate / (16 * frequency) - 1));
-        setPulseDuty(0, duty);
+        setPulseDuty(channel, duty);
         setPulseCV(channel, cv);
         setPulseEnvelope(channel, envelope);
         if (durationMillis == -1) {
@@ -155,6 +180,10 @@ public static class RP2A03_API {
     public static void pulsePlayNote(int channel, int note, int octave, int durationMillis, byte envelope = 15, bool cv = false, byte duty = 2) {
         double frequency = getFrequency(note, octave);
         pulsePlayNote(channel, frequency, durationMillis, envelope, cv, duty);
+    }
+
+    public static void pulsePlayNote(PulseNote note) {
+            pulsePlayNote(note.channel, note.note, note.octave, note.duration, (byte)note.envelope, note.cv, (byte)note.duty);
     }
     #endregion
 
@@ -178,6 +207,29 @@ public static class RP2A03_API {
     public static void setTriangleLengthCounter(byte value) {
         write(0x0B, value & 0x1F, 3, 8);
     }
+    #endregion
+    
+    #region TriangleAPI_L2
+
+    /// /////////////////////////////////////////////////////////////////////
+    /// Triangle Channel L2 API Methods
+    /// /////////////////////////////////////////////////////////////////////
+    public static void trianglePlayNote(double frequency, int durationMillis) {
+            setTriangleTimer((short)(RP2A03.clockRate / (32 * frequency) - 1));
+        if (durationMillis == -1) {
+            setTriangleLengthCounterHalt(true);
+        } else {
+            setTriangleLengthCounterHalt(false);
+            setTriangleLengthCounter(getLCIFromDuration(durationMillis));
+            setTriangleLinearCounter((byte)(durationMillis / (1000.0 / 240)));
+        }
+    }
+    
+    public static void trianglePlayNote(int note, int octave, int durationMillis) {
+        double frequency = getFrequency(note, octave);
+        trianglePlayNote(frequency, durationMillis);
+    }
+    
     #endregion
     
     #region NoiseAPI_L1
