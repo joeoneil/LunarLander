@@ -14,18 +14,20 @@ public class LunarLander : Game {
     public static LunarLander instance { get; private set; }
 
     public static readonly Random rng = new(DateTime.Now.Millisecond);
-    
-    private const int WINDOW_WIDTH = 600;
-    private const int WINDOW_HEIGHT = (int)((21 / 9.0) * WINDOW_WIDTH);
+
+    private readonly int WINDOW_WIDTH;
+    private readonly int WINDOW_HEIGHT;
     
     private readonly GraphicsDeviceManager _graphics; 
     private SpriteBatch _spriteBatch;
-    private readonly InputManager _keyboardManager = new();
+    private readonly InputManager _inputManager = new();
     
     private readonly Dictionary<string, IGameMode> _gameModes = new();
     private string _currentGameMode = "MainMenu";
 
-    public static bool running { get; private set; } = true;
+    private CompoundButton menuButton = CompoundButton.or(GenericButton.KeyEscape, GenericButton.DevMenu);
+
+    public static bool running { get; set; } = true;
     public LunarLander() {
         instance = this;
         
@@ -33,14 +35,20 @@ public class LunarLander : Game {
         Content.RootDirectory = "Content";
         IsMouseVisible = false;
 
+        this.Window.IsBorderless = true;
+        
+        int screenWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+        int screenHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+        int maxWidthFromHeight = (int) (screenHeight * 9f / 21f);
+        int maxHeightFromWidth = (int) (screenWidth * 21f / 9f);
+        WINDOW_WIDTH = Math.Min(maxWidthFromHeight, screenWidth);
+        WINDOW_HEIGHT = Math.Min(maxHeightFromWidth, screenHeight);
+        
         _gameModes.Add("MainMenu", MainMenu.instance);
         _gameModes.Add("LanderGame", LanderGame.instance);
         _gameModes.Add("Racing", Racing.instance);
         _gameModes.Add("AsteroidsGame", AsteroidsGame.instance);
-        #if RELEASE
-        #else
         _gameModes.Add("Oscilloscope", Oscilliscope.instance);
-        #endif
     }
 
     protected override void Initialize()
@@ -62,14 +70,14 @@ public class LunarLander : Game {
         RP2A03_API.pulsePlayNote(1, 440.0, 1);
 
         foreach(IGameMode gm in _gameModes.Values) {
-            gm.Initialize(_graphics, WINDOW_WIDTH, WINDOW_HEIGHT);
+            gm.Initialize(_graphics, (uint)WINDOW_WIDTH, (uint)WINDOW_HEIGHT);
         }
         
         // this is called even though the game mode has been initialized already in case some initialization
         // is done in the ReInitialize method that is not done in the initialize method
         _gameModes[_currentGameMode].ReInitialize();
         
-        _keyboardManager.onPressed(GenericButton.KeyEscape, () => {
+        _inputManager.onPressed(GenericButton.KeyEscape, () => {
             ChangeGameMode("MainMenu");
         });
 
@@ -86,10 +94,8 @@ public class LunarLander : Game {
         }
     }
 
-    protected override void Update(GameTime gameTime)
-    {
-        _keyboardManager.update(Keyboard.GetState());
-        
+    protected override void Update(GameTime gameTime) {
+        _inputManager.update(Keyboard.GetState(), GamePad.GetState(1));
 
         _gameModes[_currentGameMode].Update(gameTime);
         

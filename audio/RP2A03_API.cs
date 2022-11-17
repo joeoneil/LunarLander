@@ -266,6 +266,7 @@ public static class RP2A03_API {
     /// Noise Channel L2 API Methods
     /// /////////////////////////////////////////////////////////////////////
     
+    
     public static void noisePlayNote(int period, int durationMillis, byte envelope = 15, bool cv = false) {
         setNoisePeriod((byte)period);
         setNoiseCV(cv);
@@ -280,4 +281,5 @@ public static class RP2A03_API {
     }
 
     #endregion
+    
 }

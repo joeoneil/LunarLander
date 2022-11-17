@@ -36,8 +36,6 @@ public static class RP2A03 {
     
     public const double clockRate = 1789773.0; // 1.789773 MHz
 
-    public static double testFreq = 240;
-
     public static double gain = 2;
 
     public static bool running { get; private set; } = false;
@@ -533,13 +531,14 @@ public static class RP2A03 {
             return (byte)(envelope.get() * (lfsr.get() ? 0 : 1));
         }
     }
-    #endregion
 
     private static Pulse pulse1 = new (0);
     private static Pulse pulse2 = new (1);
     private static Triangle triangle = new ();
     private static Noise noise = new ();
+    #endregion
 
+    #region static methods
     public static byte read(int index) {
         return registers[index];
     }
@@ -636,6 +635,7 @@ public static class RP2A03 {
         t.Start();
         t.IsBackground = true;
     }
+    #endregion
 
     private static void clock() {
         running = true;

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using LunarLander.audio;
 using LunarLander.data;
 using LunarLander.geometry2d;
@@ -43,16 +42,10 @@ public class MainMenu : IGameMode {
 
     private static Image world;
     
-    // button definitions
-    #if RELEASE
-        private CompoundButton down = CompoundButton.fromGeneric(GenericButton.DevA3);
-        private CompoundButton up = CompoundButton.fromGeneric(GenericButton.DevA1);
-        private CompoundButton enter = CompoundButton.fromGeneric(GenericButton.DevMenu);
-    #else
-        private CompoundButton down = CompoundButton.fromGeneric(GenericButton.KeyDown) | GenericButton.KeyS;
-        private CompoundButton up = CompoundButton.fromGeneric(GenericButton.KeyUp) | GenericButton.KeyW;
-        private CompoundButton enter = CompoundButton.fromGeneric(GenericButton.KeyEnter) | GenericButton.KeySpace;
-    #endif
+    private readonly CompoundButton down = CompoundButton.fromGeneric(GenericButton.KeyDown) | GenericButton.KeyS | GenericButton.DevStickDown;
+    private readonly CompoundButton up = CompoundButton.fromGeneric(GenericButton.KeyUp) | GenericButton.KeyW | GenericButton.DevStickUp;
+    private readonly CompoundButton enter = CompoundButton.fromGeneric(GenericButton.KeyEnter) | GenericButton.KeySpace |
+                                   GenericButton.DevA1;
 
     private MainMenu() { }
 
@@ -69,8 +62,8 @@ public class MainMenu : IGameMode {
 
         menuItems = new List<MenuItem> {
             new ("LanderGame"),
-            new ("Racing"),
-            new ("AsteroidsGame"),
+            new (null),
+            new (null),
             new (null),
             new (null),
             new (null),
@@ -82,13 +75,13 @@ public class MainMenu : IGameMode {
         };
         
         List<string> menuItemsString = new ( new [] {
-            // All caps because I haven't implemented lower case letters yet
+            // All caps because I haven't implemented lower case letters yeti
             "LUNAR LANDER",
-            "RACING",
-            "ASTEROIDS",
-            "GRAVITAR",
-            "LEVEL SELECT",
-            "LEADERBOARD",
+            "RACING [NYI]",
+            "ASTEROIDS [NYI]",
+            "GRAVITAR [NYI]",
+            "LEVEL SELECT [NYI]",
+            "LEADERBOARD [NYI]",
             #if RELEASE
             #else
             "OSCILLOSCOPE",
@@ -140,6 +133,14 @@ public class MainMenu : IGameMode {
                 case null:
                     return; // null is a placeholder for a menu item that doesn't do anything / isn't implemented yet
                 case "Exit":
+                    LunarLander.running = false;
+                    // wait for threads to exit
+                    while (RP2A03.running) {
+                        // spin
+                    }
+                    while (AudioBuffer.running) {
+                        // spin
+                    }
                     LunarLander.instance.Exit();
                     break;
                 default:
@@ -154,7 +155,7 @@ public class MainMenu : IGameMode {
     }
 
     public void Update(GameTime gameTime) {
-        _inputManager.update(Keyboard.GetState());
+        _inputManager.update(Keyboard.GetState(), GamePad.GetState(1));
     }
 
     public void Draw(SpriteBatch spriteBatch, GameTime gameTime) {

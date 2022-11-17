@@ -75,26 +75,25 @@ public class LanderGame : IGameMode {
 
     public static LanderGame instance { get; } = new ();
     
-#if RELEASE
-    // TODO: Update Devcade bindings once controller design is finalized
-    private static readonly CompoundButton _thrust = CompoundButton.fromGeneric(GenericButton.DevA1);
-    private static readonly CompoundButton _rotateLeft = CompoundButton.fromGeneric(GenericButton.DevA2);
-    private static readonly CompoundButton _rotateRight = CompoundButton.fromGeneric(GenericButton.DevA3);
-    private static readonly CompoundButton _a = CompoundButton.fromGeneric(GenericButton.DevB1);
-    private static readonly CompoundButton _b = CompoundButton.fromGeneric(GenericButton.DevB2);
-    private static readonly CompoundButton _down = CompoundButton.fromGeneric(GenericButton.DevA4);
-    private static readonly CompoundButton _start = CompoundButton.fromGeneric(GenericButton.DevB4);
-    private static readonly CompoundButton _reset = CompoundButton.fromGeneric(GenericButton.DevB3);
-#else
-    private static readonly CompoundButton _thrust = CompoundButton.fromGeneric(GenericButton.KeyW);
-    private static readonly CompoundButton _rotateLeft = CompoundButton.fromGeneric(GenericButton.KeyA);
-    private static readonly CompoundButton _rotateRight = CompoundButton.fromGeneric(GenericButton.KeyD);
-    private static readonly CompoundButton _a = CompoundButton.fromGeneric(GenericButton.KeyV);
-    private static readonly CompoundButton _b = CompoundButton.fromGeneric(GenericButton.KeyB);
-    private static readonly CompoundButton _down = CompoundButton.fromGeneric(GenericButton.KeyS);
-    private static readonly CompoundButton _start = CompoundButton.fromGeneric(GenericButton.KeyEnter);
-    private static readonly CompoundButton _reset = CompoundButton.fromGeneric(GenericButton.KeyR);
-#endif
+    private static readonly CompoundButton _thrust = CompoundButton.fromGeneric(GenericButton.DevA2) | GenericButton.KeyW;
+
+    private static readonly CompoundButton _rotateLeft =
+        CompoundButton.fromGeneric(GenericButton.DevA1) | GenericButton.KeyA;
+
+    private static readonly CompoundButton _rotateRight =
+        CompoundButton.fromGeneric(GenericButton.DevA3) | GenericButton.KeyD;
+    private static readonly CompoundButton _a = CompoundButton.fromGeneric(GenericButton.DevB1) | GenericButton.KeyV;
+    private static readonly CompoundButton _b = CompoundButton.fromGeneric(GenericButton.DevB2) | GenericButton.KeyB;
+    private static readonly CompoundButton _up = CompoundButton.fromGeneric(GenericButton.DevStickUp) | GenericButton.KeyUp;
+    private static readonly CompoundButton _down = CompoundButton.fromGeneric(GenericButton.DevStickDown) | GenericButton.KeyDown;
+    private static readonly CompoundButton _left = CompoundButton.fromGeneric(GenericButton.DevStickLeft) | GenericButton.KeyLeft;
+
+    private static readonly CompoundButton _right = CompoundButton.fromGeneric(GenericButton.DevStickRight) |
+                                                    GenericButton.KeyRight;
+    private static readonly CompoundButton _start = CompoundButton.fromGeneric(GenericButton.DevB4) | GenericButton.KeyEnter;
+
+    private static readonly CompoundButton
+        _reset = CompoundButton.fromGeneric(GenericButton.DevB3) | GenericButton.KeyR;
     
 
     public void Initialize(IGraphicsDeviceService _graphics, uint WINDOW_WIDTH, uint WINDOW_HEIGHT) {
@@ -139,7 +138,7 @@ public class LanderGame : IGameMode {
             fuel = start_fuel - currentLevel.fuel;
             loadLevel(levels[levelIndex]);
         });
-        _inputManager.onPressed(_thrust, () => {
+        _inputManager.onPressed(_up, () => {
             if (godModeStep is 0 or 1) {
                 godModeStep++;
             }
@@ -155,7 +154,7 @@ public class LanderGame : IGameMode {
                 godModeStep = 0;
             }
         });
-        _inputManager.onPressed(_rotateLeft, () => {
+        _inputManager.onPressed(_left, () => {
             if (godModeStep is 4 or 6) {
                 godModeStep++;
             }
@@ -163,7 +162,7 @@ public class LanderGame : IGameMode {
                 godModeStep = 0;
             }
         });
-        _inputManager.onPressed(_rotateRight, () => {
+        _inputManager.onPressed(_right, () => {
             if (godModeStep is 5 or 7) {
                 godModeStep++;
             }
@@ -219,11 +218,7 @@ public class LanderGame : IGameMode {
 
     public void Update(GameTime gameTime) {
         
-#if RELEASE
-        _inputManager.update(GamePad.GetState(PlayerIndex.One));
-#else
-        _inputManager.update(Keyboard.GetState());
-#endif
+        _inputManager.update(GamePad.GetState(1), Keyboard.GetState());
 
         updateTime = gameTime.ElapsedGameTime.Milliseconds / 1000.0;
         rotateLock = true;
@@ -249,7 +244,7 @@ public class LanderGame : IGameMode {
             landerVelocity += gravity * updateTime;
             landerPosition += landerVelocity * updateTime;
             currentLevel.translate(landerVelocity * updateTime);
-
+            
             // check for collisions
             foreach (Shape s in _shapes) {
                 if (!s.intersects(lander)) continue;

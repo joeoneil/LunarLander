@@ -17,7 +17,7 @@ namespace LunarLander.mode;
 
 public class Oscilliscope : IGameMode {
 
-    private static readonly byte[] active = new byte[] {
+    private static readonly byte[] active =  {
         1, 1, 1, 1, 1, 1, 1, 1, // $4000
         1, 1, 1, 1, 1, 1, 1, 1, // $4001
         1, 1, 1, 1, 1, 1, 1, 1, // $4002
@@ -98,12 +98,6 @@ public class Oscilliscope : IGameMode {
             byte note = (byte)LunarLander.rng.NextInt64(11);
             RP2A03_API.pulsePlayNote(0, note, 3, 100);
             RP2A03_API.pulsePlayNote(1, note, 2, 100);
-        });
-        inputManager.onHeld(GenericButton.KeyUp, () => {
-            RP2A03.testFreq *= 1.05f;
-        });
-        inputManager.onHeld(GenericButton.KeyDown, () => {
-            RP2A03.testFreq *= 0.95f;
         });
     }
 
