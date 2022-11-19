@@ -19,6 +19,8 @@ public static class AudioBuffer {
     private static readonly BiQuadFilter pass1;
     private static readonly BiQuadFilter pass2;
     private static readonly BiQuadFilter pass3;
+
+    public static double gain = 1;
     
     private static bool writeLock;
 
@@ -99,7 +101,7 @@ public static class AudioBuffer {
             // convert shorts to floats and apply filters
             float[] floats = new float[samplesPerRead];
             for (int i = 0; i < samplesPerRead; i++) {
-                float sample = shorts[i] / (float)0x7FFF;
+                float sample = (float)gain * (shorts[i] / (float)0x7FFF);
                 floats[i] = sample;
             }
             

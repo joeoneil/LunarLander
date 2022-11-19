@@ -35,9 +35,7 @@ public static class RP2A03 {
     private static readonly byte[] registers = new byte[0x20]; // round to 32 bytes even though not all of them are used
     
     public const double clockRate = 1789773.0; // 1.789773 MHz
-
-    public static double gain = 0.5;
-
+    
     public static bool running { get; private set; } = false;
     
     #endregion
@@ -679,7 +677,7 @@ public static class RP2A03 {
                 byte n = noise.get();
                 double pulse = 95.88 / (8128.0 / (p1 + p2) + 100);
                 double tnd = 159.79 / (1.0 / (t / 8227.0 + n / 12241.0) + 100);
-                double sample = (pulse + tnd) * gain;
+                double sample = pulse + tnd;
                 sample = Math.Max(-1, Math.Min(1, sample));
                 short s = (short)(sample * 0x7FFF);
                 AudioBuffer.write(s);

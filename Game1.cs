@@ -25,7 +25,7 @@ public class LunarLander : Game {
     private readonly Dictionary<string, IGameMode> _gameModes = new();
     private string _currentGameMode = "MainMenu";
 
-    private CompoundButton menuButton = CompoundButton.or(GenericButton.KeyEscape, GenericButton.DevMenu);
+    private static readonly CompoundButton menuButton = CompoundButton.fromGeneric(GenericButton.DevB4) | GenericButton.KeyEscape;
 
     public static bool running { get; set; } = true;
     public LunarLander() {
@@ -79,7 +79,7 @@ public class LunarLander : Game {
         // is done in the ReInitialize method that is not done in the initialize method
         _gameModes[_currentGameMode].ReInitialize();
         
-        _inputManager.onPressed(GenericButton.KeyEscape, () => {
+        _inputManager.onPressed(menuButton, () => {
             ChangeGameMode("MainMenu");
         });
 

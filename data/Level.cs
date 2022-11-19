@@ -122,7 +122,7 @@ public class Level {
         // start
         new Point(500, 1950),
         // fuel
-        20
+        0
     ).addMeatball(new Point(1250, 900));
 
     public static readonly Level level2 = new Level(
@@ -169,7 +169,7 @@ public class Level {
         // start
         new Point(1400, 780),
         // fuel
-        35
+        25
     ).addMeatball(new Point(400, 2800));
 
     public static readonly Level level3 = new Level(
@@ -244,6 +244,6 @@ public class Level {
         // start
         new Point(170, 370),
         // fuel
-        0
+        35
     ).addMeatball(new Point(2000, 2000));
 }

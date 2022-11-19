@@ -33,7 +33,7 @@ public class LanderGame : IGameMode {
 
     private static Point landerVelocity = new (0, 0);
     private static Point landerPosition = new (0, 0);
-    private static readonly Point gravity = new (0, -32.4);
+    private static Point gravity = new (0, -324);
     private static double theta;
     private static double thrust_power = 275;
     private static double thrust_graphic;
@@ -42,6 +42,8 @@ public class LanderGame : IGameMode {
     private static Text fuelText;
     private static Text fuelCountText;
     private static string fuelCountString;
+    public static double startingFuelBonus = 20;
+    public static double gravityScale = 0.1;
 
     private static double updateTime;
     private static bool rotateLock;
@@ -212,8 +214,9 @@ public class LanderGame : IGameMode {
         godModeStep = 0;
         godMode = false;
         levelIndex = 0;
-        fuel = 0;
+        fuel = startingFuelBonus;
         loadLevel(levels[levelIndex]);
+        gravity = new Point(0, 324 * -gravityScale);
     }
 
     public void Update(GameTime gameTime) {
@@ -315,11 +318,7 @@ public class LanderGame : IGameMode {
                     $"FUEL USED: {Math.Floor(start_fuel - fuel)}.{Math.Round((start_fuel - fuel) * 100 % 100)}\n" +
                     $"DEATHS: {deathCount}\n" +
                     $"{(currentLevel.meatball == null ? "COLLECTED MEATBALL" : "")}\n" +
-                    #if RELEASE
-                        "PRESS START TO CONTINUE",
-                    #else
-                        "PRESS ENTER TO CONTINUE",
-                    #endif
+                    "PRESS B3 TO CONTINUE",
                     new Point(10, 200), 16);
                     totalTime += levelTimer;
                     totalFuel += start_fuel - fuel;

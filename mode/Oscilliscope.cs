@@ -56,6 +56,12 @@ public class Oscilliscope : IGameMode {
 
     private static readonly Rectangle window = new Rectangle(new Point(64, 800), 600 - 128, 400);
     private static readonly Line xAxis = new Line(new Point(64, 1000), new Point(600 - 64, 1000));
+
+    private static readonly CompoundButton b1 = CompoundButton.or(GenericButton.KeyQ, GenericButton.DevA1);
+    private static readonly CompoundButton b2 = CompoundButton.or(GenericButton.KeyW, GenericButton.DevA2);
+    private static readonly CompoundButton b3 = CompoundButton.or(GenericButton.KeyE, GenericButton.DevA3);
+    private static readonly CompoundButton b4 = CompoundButton.or(GenericButton.KeyR, GenericButton.DevA4);
+    private static readonly CompoundButton b5 = CompoundButton.or(GenericButton.KeyT, GenericButton.DevB1);
     
 
     private Oscilliscope() { }
@@ -82,19 +88,19 @@ public class Oscilliscope : IGameMode {
             registers[i] = new Text("0", new Point(col * scale + extra * (scale * 2) + (scale * 8), row * (scale * 2) + row_extra * (scale * 2) +
                 (scale * 4)), scale);
         }
-        inputManager.onPressed(GenericButton.KeyQ, () => {
+        inputManager.onPressed(b1, () => {
             RP2A03_API.pulsePlayNote(0, (byte)LunarLander.rng.NextInt64(11), 3, 100);
         });
-        inputManager.onPressed(GenericButton.KeyW, () => {
+        inputManager.onPressed(b2, () => {
             RP2A03_API.pulsePlayNote(1, (byte)LunarLander.rng.NextInt64(11), 2, 100);
         });
-        inputManager.onPressed(GenericButton.KeyE, () => {
+        inputManager.onPressed(b3, () => {
             RP2A03_API.trianglePlayNote((byte)LunarLander.rng.NextInt64(11), 4, 300);
         });
-        inputManager.onPressed(GenericButton.KeyR, () => {
+        inputManager.onPressed(b4, () => {
             RP2A03_API.noisePlayNote((byte)LunarLander.rng.NextInt64(15), 1, 4);
         });
-        inputManager.onPressed(GenericButton.KeyT, () => {
+        inputManager.onPressed(b5, () => {
             byte note = (byte)LunarLander.rng.NextInt64(11);
             RP2A03_API.pulsePlayNote(0, note, 3, 100);
             RP2A03_API.pulsePlayNote(1, note, 2, 100);

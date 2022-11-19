@@ -47,6 +47,8 @@ public class MainMenu : IGameMode {
     private readonly CompoundButton enter = CompoundButton.fromGeneric(GenericButton.KeyEnter) | GenericButton.KeySpace |
                                    GenericButton.DevA1;
 
+    private static int heldFrames;
+
     private MainMenu() { }
 
     public static MainMenu instance { get; } = new();
@@ -101,28 +103,25 @@ public class MainMenu : IGameMode {
             menuItems[i].setText(new Text(menuItemsString[i], tlc, fontSize));
         }
         
-        _inputManager.onPressed(up, () => {
+        _inputManager.onHeld(up, () => {
+            if (heldFrames != 0 && (heldFrames <= 30 || heldFrames % 5 != 0)) {
+                heldFrames++;
+                return;
+            };
             RP2A03_API.pulsePlayNote(0, 9, 3, 2, 2);
-            switch (selectedItem) {
-                case > 0:
-                    selectedItem--;
-                    break;
-                case 0:
-                    selectedItem = menuItems.Count - 1;
-                    break;
-                default:
-                    selectedItem = 0;
-                    break;
-            }
+            selectedItem--;
+            if (selectedItem < 0) selectedItem = menuItems.Count - 1;
+            heldFrames++;
         });
-        _inputManager.onPressed(down, () => {
+        _inputManager.onHeld(down, () => {
+            if (heldFrames != 0 && (heldFrames <= 30 || heldFrames % 5 != 0)) {
+                heldFrames++;
+                return;
+            };
             RP2A03_API.pulsePlayNote(0, 9, 3, 2, 2);
-            if (selectedItem == menuItems.Count - 1) {
-                selectedItem = 0;
-            }
-            else {
-                selectedItem++;
-            }
+            selectedItem++;
+            if (selectedItem >= menuItems.Count) selectedItem = 0;
+            heldFrames++;
         });
         _inputManager.onPressed(enter, () => {
             RP2A03_API.pulsePlayNote(0, 9, 2, 4, 4);
@@ -145,6 +144,9 @@ public class MainMenu : IGameMode {
                     LunarLander.instance.ChangeGameMode(menuItems[selectedItem].internalName);
                     break;
             }
+        });
+        _inputManager.onReleased(up | down, () => {
+            heldFrames = 0;
         });
     }
 
