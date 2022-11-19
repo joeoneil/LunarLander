@@ -61,31 +61,29 @@ public class MainMenu : IGameMode {
         selectedItem = -1;
 
         menuItems = new List<MenuItem> {
+            new ("Instructions"),
             new ("LanderGame"),
-            new (null),
-            new (null),
-            new (null),
-            new (null),
-            new (null),
-            #if RELEASE
-            #else
+            // new (null),
+            // new (null),
+            // new (null),
+            // new (null),
+            // new (null),
             new ("Oscilloscope"),
-            #endif
+            new ("Options"),
             new ("Exit")
         };
         
         List<string> menuItemsString = new ( new [] {
             // All caps because I haven't implemented lower case letters yeti
+            "INSTRUCTIONS",
             "LUNAR LANDER",
-            "RACING [NYI]",
-            "ASTEROIDS [NYI]",
-            "GRAVITAR [NYI]",
-            "LEVEL SELECT [NYI]",
-            "LEADERBOARD [NYI]",
-            #if RELEASE
-            #else
+            // "RACING [NYI]",
+            // "ASTEROIDS [NYI]",
+            // "GRAVITAR [NYI]",
+            // "LEVEL SELECT [NYI]",
+            // "LEADERBOARD [NYI]",
             "OSCILLOSCOPE",
-            #endif
+            "OPTIONS",
             "EXIT"
         });
         

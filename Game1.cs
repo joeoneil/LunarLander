@@ -45,10 +45,12 @@ public class LunarLander : Game {
         WINDOW_HEIGHT = Math.Min(maxHeightFromWidth, screenHeight);
         
         _gameModes.Add("MainMenu", MainMenu.instance);
+        _gameModes.Add("Instructions", Instructions.instance);
         _gameModes.Add("LanderGame", LanderGame.instance);
         _gameModes.Add("Racing", Racing.instance);
         _gameModes.Add("AsteroidsGame", AsteroidsGame.instance);
         _gameModes.Add("Oscilloscope", Oscilliscope.instance);
+        _gameModes.Add("Options", Options.instance);
     }
 
     protected override void Initialize()

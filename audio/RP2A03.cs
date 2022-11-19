@@ -36,7 +36,7 @@ public static class RP2A03 {
     
     public const double clockRate = 1789773.0; // 1.789773 MHz
 
-    public static double gain = 2;
+    public static double gain = 0.5;
 
     public static bool running { get; private set; } = false;
     
