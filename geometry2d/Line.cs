@@ -25,7 +25,9 @@ public class Line : Shape {
 
     public override double squareDistance(double x, double y) {
         double l2 = Math.Pow(p2.x - p1.x, 2) + Math.Pow(p2. y - p1.y, 2);
-        if (l2 == 0.0) return p1.squareDistance(x, y);
+        if (Math.Abs(l2) < 0.0001) {
+            return p1.squareDistance(x, y);
+        }
         double t = ((x - p1.x) * (p2.x - p1.x) + (y - p1.y) * (p2.y - p1.y)) / l2;
         return t switch {
             < 0.0 => p1.squareDistance(x, y),
@@ -52,8 +54,8 @@ public class Line : Shape {
         centroidCached = false;
     }
 
-    public override bool intersects(Shape s) {
-        return s switch {
+    public override bool intersects(Shape other) {
+        return other switch {
             Line l => intersects(l),
             Circle c => c.intersects(this),
             Rectangle r => r.intersects(this),
@@ -63,7 +65,7 @@ public class Line : Shape {
     }
 
     public override bool contains(double x, double y) {
-        return squareDistance(x, y) == 0;
+        return Math.Abs(squareDistance(x, y)) < 0.0001;
     }
     
     private bool intersects(Line l) {
@@ -85,12 +87,12 @@ public class Line : Shape {
         boundingBox = new Bounds(p1, p2);
     }
 
-    public override Point contactNormal(Shape s) {
-        return s switch {
+    public override Point contactNormal(Shape other) {
+        return other switch {
             Polygon p => contactNormal(p),
             Circle c => contactNormal(c),
-            Line l => contactNormal(l),
-            _ => throw new ArgumentOutOfRangeException(nameof(s), s, null)
+            Line => contactNormal(),
+            _ => throw new ArgumentOutOfRangeException(nameof(other), other, null)
         };
     }
     
@@ -102,7 +104,7 @@ public class Line : Shape {
         return c.contactNormal(this);
     }
 
-    private Point contactNormal(Line _) {
+    private Point contactNormal() {
         return new Point(p2.y - p1.y, p1.x - p2.x);
     }
 
@@ -138,7 +140,11 @@ public class Line : Shape {
     }
 
     public IEnumerable<Line> greeble(int numSplits, double maxDeviation) {
-        if (!greebleable) return new List<Line> {this.clone()};
+        if (!greebleable) {
+            return new List<Line> {
+                this.clone()
+            };
+        }
         List<Point> points = new () { p1 };
         Point normal = this.normal().normalized();
         for (int i = 0; i < numSplits; i++) {
@@ -156,9 +162,9 @@ public class Line : Shape {
         return lines;
     }
 
-    public void scale(double scale) {
-        this.p1 = new Point(p1.x * scale, p1.y * scale);
-        this.p2 = new Point(p2.x * scale, p2.y * scale);
+    public void scale(double factor) {
+        this.p1 = new Point(p1.x * factor, p1.y * factor);
+        this.p2 = new Point(p2.x * factor, p2.y * factor);
         this.m = (p2.y - p1.y) / (p2.x - p1.x);
         this.length = p1.distance(p2);
         boundingBoxCached = false;

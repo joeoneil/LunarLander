@@ -34,14 +34,14 @@ public static class RP2A03 {
 
     private static readonly byte[] registers = new byte[0x20]; // round to 32 bytes even though not all of them are used
     
-    public const double clockRate = 1789773.0; // 1.789773 MHz
-    
-    public static bool running { get; private set; } = false;
-    
+    public static readonly double clockRate = 1_789_773.0; // 1.789773 MHz
+
+    public static bool running { get; private set; }
+
     #endregion
 
     #region subcomponents
-    private class Divider {
+    private sealed class Divider {
         public short count { get; private set; }
         private short period { get; set; }
         private bool loop { get; set; }
@@ -57,20 +57,18 @@ public static class RP2A03 {
             this.count = period;
         }
         
-        public bool clock() {
+        public bool divClock() {
             if (count == 0) {
-                if (loop) count = period;
+                if (loop) {
+                    count = period;
+                }
                 return true;
             }
             count--;
             return false;
         }
-
-        public void setLoop(bool loop) {
-            this.loop = loop;
-        }
     }
-    private class LengthCounter {
+    private sealed class LengthCounter {
 
         private Divider divider { get; set; }
         private bool halt { get; set; }
@@ -78,10 +76,6 @@ public static class RP2A03 {
         public LengthCounter(byte period, bool halt) {
             this.divider = new Divider(period, false);
             this.halt = halt;
-        }
-        
-        public void load(int index) {
-            divider.load(lengthTable[index]);
         }
         
         public void load(byte period) {
@@ -92,25 +86,23 @@ public static class RP2A03 {
             this.halt = halt;
         }
         
-        public void setLoop(bool loop) {
-            divider.setLoop(loop);
-        }
-        
-        public bool clock() {
-            return !halt && divider.clock();
+        public void lcClock() {
+            if (!halt) {
+                divider.divClock();
+            }
         }
 
         public byte get() {
             return (byte)divider.count;
         }
     }
-    private class Envelope {
-        private Divider divider;
+    private sealed class Envelope {
+        private readonly Divider divider;
         private byte envelope { get; set; }
         private byte decay { get; set; }
         private bool loop { get; set; }
         private bool constant { get; set; }
-        private bool start { get; set; }
+        private bool firstClock { get; set; }
         
         public Envelope(byte envelope, bool loop, bool constant) {
             this.divider = new Divider(envelope, true);
@@ -118,12 +110,12 @@ public static class RP2A03 {
             this.decay = 0;
             this.loop = loop;
             this.constant = constant;
-            this.start = true;
+            this.firstClock = true;
         }
         
         public void load(byte envelope) {
             this.envelope = envelope;
-            this.start = true;
+            this.firstClock = true;
         }
         
         public void setLoop(bool loop) {
@@ -134,34 +126,44 @@ public static class RP2A03 {
             this.constant = constant;
         }
         
-        public void clock() {
-            // Console.WriteLine("Decay = " + decay + ", div counter = " + divider.count);
-            if (start) {
+        public void envClock() {
+            if (firstClock) {
                 decay = 0xF;
                 divider.load(envelope);
-                start = false;
-            } else if (divider.clock()) {
-                if (decay > 0) decay--;
-                else if (loop) decay = 0xF;
+                firstClock = false;
+            } else if (divider.divClock()) {
+                if (decay > 0) {
+                    decay--;
+                }
+                else if (loop) {
+                    decay = 0xF;
+                }
+                else {
+                    // This space intentionally left blank.
+                }
+            }
+            else {
+                // This space intentionally left blank.
             }
         }
         
         public byte get() {
             return constant ? envelope : decay;
-            // return 15;
         }
     }
-    private class LFSR {
-        bool[] bits = new bool[15];
-        bool mode { get; set; }
+    private sealed class LFSR {
+        private readonly bool[] bits = new bool[15];
+        private bool mode { get; set; }
 
         public LFSR(bool mode) {
             this.mode = mode;
-            for (int i = 0; i < bits.Length; i++) bits[i] = false;
+            for (int i = 0; i < bits.Length; i++) {
+                bits[i] = false;
+            }
             bits[14] = true;
         }
 
-        public void clock() {
+        public void LFSRClock() {
             bool feedback = bits[0] ^ (mode ? bits[6] : bits[1]);
             // shift bits 1 to the right
             for (int i = 0; i < bits.Length - 1; i++) {
@@ -177,16 +179,8 @@ public static class RP2A03 {
         public bool get() {
             return bits[0];
         }
-
-        public short getAll() {
-            short acc = 0;
-            for(int i = 0; i < bits.Length; i++) {
-                if (bits[i]) acc |= (short)(1 << i);
-            }
-            return acc;
-        }
     }
-    private class Sweep {
+    private sealed class Sweep {
         private bool channel { get; set; } // false: pulse 1, true: pulse 2
         private bool enabled { get; set; }
         private Divider divider { get; set; }
@@ -217,15 +211,19 @@ public static class RP2A03 {
             this.shift = shift;
         }
 
-        public short clock(short raw_period) {
-            if (!enabled || !divider.clock()) return raw_period;
+        public short SweepClock(short raw_period) {
+            if (!enabled || !divider.divClock()) {
+                return raw_period;
+            }
             short delta = (short)(raw_period >> shift);
-            if (negate) delta = channel ? (short)-delta : (short)-(delta + 1);
+            if (negate) {
+                delta = channel ? (short)-delta : (short)-(delta + 1);
+            }
             raw_period += delta;
             return raw_period;
         }
     }
-    private class Sequencer {
+    private sealed class Sequencer {
         private byte[] sequence { get; set; }
         private byte index { get; set; }
         private byte length { get; set; }
@@ -236,10 +234,11 @@ public static class RP2A03 {
             this.length = (byte)sequence.Length;
         }
 
-        public byte clock() {
+        public void seqClock() {
             index++;
-            if (index >= length) index = 0;
-            return sequence[index];
+            if (index >= length) {
+                index = 0;
+            }
         }
 
         public byte get() {
@@ -249,7 +248,7 @@ public static class RP2A03 {
     #endregion
     
     #region channels
-    private class Pulse {
+    private sealed class Pulse {
         private int channel { get; set; } // 0: pulse 1, 1: pulse 2
         private bool enabled { get; set; }
 
@@ -335,32 +334,38 @@ public static class RP2A03 {
             this.enabled = enabled;
         }
 
-        public void clockHalfFrame() {
-            lengthCounter.clock();
-            raw_period = sweep.clock(raw_period);
+        public void pulseHalfFrame() {
+            lengthCounter.lcClock();
+            raw_period = sweep.SweepClock(raw_period);
             if (raw_period is < 8 or > 0x7FF) {
                 this.enabled = false;
             }
         }
         
-        public void clockQuarterFrame() {
-            envelope.clock();
+        public void pulseQuarterFrame() {
+            envelope.envClock();
         }
 
-        public void clock() {
-            if (divider.clock()) {
-                sequencer.clock();
+        public void pulseClock() {
+            if (divider.divClock()) {
+                sequencer.seqClock();
             }
         }
         
         public byte get() {
-            if (!enabled) return 0;
-            if (lengthCounter.get() == 0) return 0;
-            if (raw_period is < 8 or > 0x7FF) return 0;
+            if (!enabled) {
+                return 0;
+            }
+            if (lengthCounter.get() == 0) {
+                return 0;
+            }
+            if (raw_period is < 8 or > 0x7FF) {
+                return 0;
+            }
             return dutyTable[duty][sequencer.get()] ? envelope.get() : (byte)0;
         }
     }
-    private class Triangle {
+    private sealed class Triangle {
         
         private bool enabled { get; set; }
         private short raw_period { get; set; }
@@ -421,31 +426,37 @@ public static class RP2A03 {
             this.enabled = enabled;
         }
         
-        public void clockHalfFrame() {
-            lengthCounter.clock();
-            linearCounter.clock();
+        public void triangleHalfFrame() {
+            lengthCounter.lcClock();
+            linearCounter.lcClock();
         }
         
-        public void clockQuarterFrame() {
+        public void triangleQuarterFrame() {
             // No-op
         }
 
-        public void clock() {
-            if (divider.clock()) {
-                sequencer.clock();
+        public void triangleClock() {
+            if (divider.divClock()) {
+                sequencer.seqClock();
             }
-            if (divider.clock()) {
-                sequencer.clock();
+            if (divider.divClock()) { // Linter yells at this line, but divClock is not a pure function
+                                      // it returns true every n calls, so calling it twice here in a test is intended.
+                sequencer.seqClock();
             }
         }
 
         public byte get() {
-            if (!enabled) return 0;
-            if (linearCounter.get() == 0 || lengthCounter.get() == 0) return 0;
+            if (!enabled) {
+                return 0;
+            }
+            if (linearCounter.get() == 0 || 
+                lengthCounter.get() == 0) {
+                return 0;
+            }
             return sequencer.get();
         }
     }
-    private class Noise {
+    private sealed class Noise {
         private bool enabled { get; set; }
         private short timer_period { get; set; }
 
@@ -464,7 +475,7 @@ public static class RP2A03 {
             this.reset();
         }
 
-        public void reset() {
+        private void reset() {
             this.timer_period = timerPeriodTable[registers[0x0E] & 0x0F];
             this.lengthCounter = new LengthCounter(
                 lengthTable[registers[0x0F] >> 3],
@@ -509,31 +520,35 @@ public static class RP2A03 {
             this.enabled = enabled;
         }
         
-        public void clockHalfFrame() {
-            lengthCounter.clock();
+        public void noiseHalfFrame() {
+            lengthCounter.lcClock();
         }
         
-        public void clockQuarterFrame() {
-            envelope.clock();
+        public void noiseQuarterFrame() {
+            envelope.envClock();
         }
 
-        public void clock() {
-            if (divider.clock()) {
-                lfsr.clock();
+        public void noiseClock() {
+            if (divider.divClock()) {
+                lfsr.LFSRClock();
             }
         }
 
         public byte get() {
-            if (!enabled) return 0;
-            if (lengthCounter.get() == 0) return 0;
+            if (!enabled) {
+                return 0;
+            }
+            if (lengthCounter.get() == 0) {
+                return 0;
+            }
             return (byte)(envelope.get() * (lfsr.get() ? 0 : 1));
         }
     }
 
-    private static Pulse pulse1 = new (0);
-    private static Pulse pulse2 = new (1);
-    private static Triangle triangle = new ();
-    private static Noise noise = new ();
+    private static readonly Pulse pulse1 = new (0);
+    private static readonly Pulse pulse2 = new (1);
+    private static readonly Triangle triangle = new ();
+    private static readonly Noise noise = new ();
     #endregion
 
     #region static methods
@@ -546,7 +561,6 @@ public static class RP2A03 {
     }
 
     public static void write(int index, byte data) {
-        // Console.WriteLine("Write call at " + index.ToString("X2") + " with " + data.ToString("X2"));
         registers[index] = data;
         switch (index) {
             case 0: // $4000
@@ -614,17 +628,17 @@ public static class RP2A03 {
     }
     
     private static void clockQuarterFrame() {
-        pulse1.clockQuarterFrame();
-        pulse2.clockQuarterFrame();
-        triangle.clockQuarterFrame();
-        noise.clockQuarterFrame();
+        pulse1.pulseQuarterFrame();
+        pulse2.pulseQuarterFrame();
+        triangle.triangleQuarterFrame();
+        noise.noiseQuarterFrame();
     }
     
     private static void clockHalfFrame() {
-        pulse1.clockHalfFrame();
-        pulse2.clockHalfFrame();
-        triangle.clockHalfFrame();
-        noise.clockHalfFrame();
+        pulse1.pulseHalfFrame();
+        pulse2.pulseHalfFrame();
+        triangle.triangleHalfFrame();
+        noise.noiseHalfFrame();
     }
     
     public static void start() {
@@ -637,11 +651,11 @@ public static class RP2A03 {
 
     private static void clock() {
         running = true;
-        const double f = clockRate / 2;
+        double f = clockRate / 2;
         double durationTicks = Math.Round((1 / f) * Stopwatch.Frequency);
         var sw = Stopwatch.StartNew();
         int tick = 0;
-        const double ticksPerSample = (1 / 48000.0) * (clockRate / 2);
+        double ticksPerSample = (1 / 48000.0) * (clockRate / 2);
         double nextSample = 0;
         while (true) {
             tick++;
@@ -651,24 +665,19 @@ public static class RP2A03 {
             }
             switch (tick) {
                 case 0:
-                    clockQuarterFrame();
-                    clockHalfFrame();
-                    break;
-                case 3729:
-                    clockQuarterFrame();
-                    break;
                 case 7456:
                     clockQuarterFrame();
                     clockHalfFrame();
                     break;
+                case 3729:
                 case 11185:
                     clockQuarterFrame();
                     break;
             }
-            pulse1.clock();
-            pulse2.clock();
-            triangle.clock();
-            noise.clock();
+            pulse1.pulseClock();
+            pulse2.pulseClock();
+            triangle.triangleClock();
+            noise.noiseClock();
             if (tick > nextSample) {
                 nextSample += ticksPerSample;
                 byte p1 = pulse1.get();

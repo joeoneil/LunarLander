@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using Microsoft.Xna.Framework.Audio;
 using NAudio.Dsp;
@@ -16,17 +15,19 @@ public static class AudioBuffer {
     private static int writeHead;
     private static int readHead;
     
-    private static readonly BiQuadFilter pass1;
-    private static readonly BiQuadFilter pass2;
-    private static readonly BiQuadFilter pass3;
+    private static BiQuadFilter pass1;
+    private static BiQuadFilter pass2;
+    private static BiQuadFilter pass3;
 
-    public static double gain = 1;
-    
+    public static double gain { get; set; } = 1;
+
     private static bool writeLock;
 
     public static bool running { get; private set; }
+
+    private static int _ = InitAudioBuffer();
     
-    static AudioBuffer() {
+    private static int InitAudioBuffer() {
 
         pass1 = BiQuadFilter.HighPassFilter(48000, 90, 1);
         pass2 = BiQuadFilter.HighPassFilter(48000, 440, 1);
@@ -35,13 +36,17 @@ public static class AudioBuffer {
         Thread t = new Thread(run);
         t.Start();
         t.IsBackground = true;
+
+        return 0;
     }
 
-    public static void write(IReadOnlyList<byte> buffer) {
+    public static void write(IEnumerable<byte> buffer) {
         writeLock = true;
-        for (int i = 0; i < buffer.Count; i++) {
-            AudioBuffer.buffer[writeHead++] = buffer[i];
-            if(writeHead > AudioBuffer.buffer.Length - 1) writeHead = 0;
+        foreach (byte t in buffer) {
+            AudioBuffer.buffer[writeHead++] = t;
+            if (writeHead > AudioBuffer.buffer.Length - 1) {
+                writeHead = 0;
+            }
         }
         writeLock = false;
     }
@@ -50,7 +55,9 @@ public static class AudioBuffer {
         writeLock = true;
         buffer[writeHead++] = (byte) (sample & 0xFF);
         buffer[writeHead++] = (byte) ((sample >> 8) & 0xFF);
-        if(writeHead > buffer.Length - 1) writeHead = 0;
+        if (writeHead > buffer.Length - 1) {
+            writeHead = 0;
+        }
         writeLock = false;
     }
     
@@ -71,7 +78,7 @@ public static class AudioBuffer {
         var sw = Stopwatch.StartNew();
         sw.Start();
         while (true) {
-            const long durationTicks = (long)(1000000000 * (samplesPerRead / 48000.0));
+            const long durationTicks = (long)(1_000_000_000 * (samplesPerRead / 48_000.0));
             if (writeLock) {
                 Thread.Sleep(1);
             }
@@ -85,6 +92,9 @@ public static class AudioBuffer {
             }
 
             byte[] data = new byte[samplesPerRead * 2];
+            short[] shorts = new short[samplesPerRead];
+            float[] floats = new float[samplesPerRead];
+            
             for (int i = 0; i < samplesPerRead * 2; i++) {
                 data[i] = buffer[readHead++];
                 if (readHead == buffer.Length) {
@@ -92,37 +102,14 @@ public static class AudioBuffer {
                 }
             }
             
-            // convert bytes to shorts
-            short[] shorts = new short[samplesPerRead];
             for (int i = 0; i < samplesPerRead; i++) {
                 shorts[i] = (short)((data[i * 2 + 1] << 8) | data[i * 2]);
-            }
-            
-            // convert shorts to floats and apply filters
-            float[] floats = new float[samplesPerRead];
-            for (int i = 0; i < samplesPerRead; i++) {
                 float sample = (float)gain * (shorts[i] / (float)0x7FFF);
-                floats[i] = sample;
-            }
-            
-            for(int i = 0; i < floats.Length; i++) {
-                floats[i] = pass1.Transform(floats[i]);
-                floats[i] = pass2.Transform(floats[i]);
-                floats[i] = pass3.Transform(floats[i]);
-            }
-            
-            // clamp floats to [-1, 1]
-            for (int i = 0; i < samplesPerRead; i++) {
-                floats[i] = Math.Min(Math.Max(floats[i], -1), 1);
-            }
-            
-            // convert floats back to shorts
-            for (int i = 0; i < samplesPerRead; i++) {
+                floats[i] = Math.Min(Math.Max(
+                    pass3.Transform(
+                    pass2.Transform(
+                    pass1.Transform(sample))), -1), 1);
                 shorts[i] = (short)(floats[i] * 0x7FFF);
-            }
-            
-            // convert shorts back to bytes
-            for (int i = 0; i < samplesPerRead; i++) {
                 data[i * 2 + 1] = (byte)(shorts[i] >> 8);
                 data[i * 2] = (byte)(shorts[i] & 0xFF);
             }
@@ -131,13 +118,13 @@ public static class AudioBuffer {
             data.CopyTo(prevBuffer, 0);
 
             // play audio
-            SoundEffect effect = new (data, 48000, AudioChannels.Mono);
+            SoundEffect effect = new (data, 48_000, AudioChannels.Mono);
             effect.Play();
-            if (durationTicks - sw.ElapsedTicks > 1000000) {
-                Thread.Sleep((int)Math.Floor((double)((int)durationTicks - (int)sw.ElapsedTicks - 500000) / 1000000)); // spin for at least 500us
+            if (durationTicks - sw.ElapsedTicks > 1_000_000) {
+                Thread.Sleep((int)Math.Floor((double)((int)durationTicks - (int)sw.ElapsedTicks - 500_000) / 1_000_000)); // spin for at least 500us
             }
             // wait for audio to finish
-            while (sw.ElapsedTicks < durationTicks - 1000000) {
+            while (sw.ElapsedTicks < durationTicks - 1_000_000) {
                 // spin
             }
             sw.Restart();

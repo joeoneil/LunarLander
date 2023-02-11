@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Microsoft.Xna.Framework.Input;
 
 namespace LunarLander.audio; 
 
@@ -38,7 +37,6 @@ public static class RP2A03_API {
         byte old = RP2A03.read(address);
         byte mask = (byte)(((1 << (end - start)) - 1) << start);
         byte new_data = (byte)((old & ~mask) | ((value << start) & mask));
-        // Console.WriteLine("Writing " + Convert.ToString(value, 2).PadLeft(end - start, '0').PadLeft(8, ' ') + " to " + address.ToString("X2") + " from " + start + " to " + end + " [" + Convert.ToString(old, 2).PadLeft(8, '0') + " -> " + Convert.ToString(new_data, 2).PadLeft(8, '0') + "]");
         RP2A03.write(address, new_data);
     }
     private static void writeFlag(int address, int bit, bool value) {

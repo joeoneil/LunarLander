@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
-using System.Threading;
+using System.Linq;
 using LunarLander.audio;
 using LunarLander.data;
 using LunarLander.geometry2d;
@@ -20,55 +19,51 @@ public class LanderGame : IGameMode {
     
     private static readonly InputManager _inputManager = new ();
 
-    private static List<Shape> _shapes = new ();
-    private static Point center;
+    private List<Shape> _shapes = new ();
+    private Point center;
 
-    private static Polygon lander;
-    private static List<Line> landerFragments;
-    private static List<Point> fragmentVelocities;
-    private static List<double> fragmentRotations;
-    private static double deadTimer;
-    private static double invulnTimer;
-    private static int deathCount;
+    private Polygon lander;
+    private List<Line> landerFragments;
+    private List<Point> fragmentVelocities;
+    private List<double> fragmentRotations;
+    private double deadTimer;
+    private double invulnTimer;
+    private int deathCount;
 
-    private static Point landerVelocity = new (0, 0);
-    private static Point landerPosition = new (0, 0);
-    private static Point gravity = new (0, -324);
-    private static double theta;
-    private static double thrust_power = 275;
-    private static double thrust_graphic;
-    private static double fuel;
-    private static double start_fuel;
-    private static Text fuelText;
-    private static Text fuelCountText;
-    private static string fuelCountString;
-    public static double startingFuelBonus = 20;
-    public static double gravityScale = 0.1;
+    private Point landerVelocity = new (0, 0);
+    private Point landerPosition = new (0, 0);
+    private Point gravity = new (0, -324);
+    private double theta;
+    private const double thrust_power = 275;
+    private double thrust_graphic;
+    private double fuel;
+    private double start_fuel;
+    private VectorText fuelText;
+    private VectorText fuelCountText;
+    private string fuelCountString;
+    public double startingFuelBonus { get; set; } = 20;
+    public double gravityScale { get; set; } = 0.1;
 
-    private static double updateTime;
-    private static bool rotateLock;
-    private static bool thrustLock;
-    private static bool isDead;
+    private double updateTime;
+    private bool rotateLock;
+    private bool thrustLock;
+    private bool isDead;
 
-    private static double breakThreshold = 15;
-    private static int godModeStep;
-    private static bool godMode;
+    private const double breakThreshold = 15;
+    private int godModeStep;
+    private bool godMode;
     
-    private static Image world;
-    private static Level currentLevel;
+    private Image world;
+    private Level currentLevel;
 
-    private static List<Level> levels;
-    private static int levelIndex;
-    private static double levelTimer;
-    private static double levelCompleteTimer;
-    private static bool levelComplete;
-    private static Text levelCompleteText;
+    private List<Level> levels;
+    private int levelIndex;
+    private double levelTimer;
+    private double levelCompleteTimer;
+    private bool levelComplete;
+    private VectorText levelCompleteText;
 
-    private static double totalTime;
-    private static double totalFuel;
-    private static int totalDeaths;
-
-    public static Texture2D meatball;
+    private static Texture2D meatball;
     public static int meatballsCollected { get; private set; }
 
     private static readonly Dictionary<string, Song> songs = new();
@@ -98,7 +93,7 @@ public class LanderGame : IGameMode {
         _reset = CompoundButton.fromGeneric(GenericButton.DevB3) | GenericButton.KeyR;
     
 
-    public void Initialize(IGraphicsDeviceService _graphics, uint WINDOW_WIDTH, uint WINDOW_HEIGHT) {
+    public void Initialize(IGraphicsDeviceService graphicsDeviceService, uint width, uint height) {
         levels = new List<Level>(new[] {
             Level.level1,
             Level.level2,
@@ -107,11 +102,11 @@ public class LanderGame : IGameMode {
         
         songs.Add("win", Song.song1);
 
-        center = new Point(WINDOW_WIDTH / 2.0, WINDOW_HEIGHT / 2.0);
+        center = new Point(width / 2.0, height / 2.0);
 
-        world = new Image(_graphics.GraphicsDevice, WINDOW_WIDTH, WINDOW_HEIGHT);
+        world = new Image(graphicsDeviceService.GraphicsDevice, width, height);
         
-        fuelCountText = new Text($"{Math.Ceiling(fuel)}", new Point(266, 5), 16);
+        fuelCountText = new VectorText($"{Math.Ceiling(fuel)}", new Point(266, 5), 16);
 
         _inputManager.onHeld(_rotateLeft, () => {
             rotateLander(-8);
@@ -197,16 +192,17 @@ public class LanderGame : IGameMode {
                 godModeStep = 0;
             }
 
-            if (levelComplete) {
-                songs["win"].stop();
-                loadLevel(levels[levelIndex]); // level index is incremented in update
+            if (!levelComplete) {
+                return;
             }
+            songs["win"].stop();
+            loadLevel(levels[levelIndex]); // level index is incremented in update
         });
 
         // testText = new Text(" !\"#$%&'()*+,-./\n0123456789:;<=>?\n@ABCDEFGHIJKLMNO\nPQRSTUVWXYZ[\\]^_\n`abcdefghijklmno", new Point(10, 200), 16);
         // testText = new Text("HELLO, WORLD!", new Point(10, 200), 16);
 
-        fuelText = new Text("FUEL REMAINING: ", new Point(10, 5), 16);
+        fuelText = new VectorText("FUEL REMAINING: ", new Point(10, 5), 16);
     }
 
     public void ReInitialize() {
@@ -250,13 +246,15 @@ public class LanderGame : IGameMode {
             
             // check for collisions
             foreach (Shape s in _shapes) {
-                if (!s.intersects(lander)) continue;
+                if (!s.intersects(lander)) {
+                    continue;
+                }
                 // pop the lander out of the shape
                 Point normal = s.contactNormal(lander);
                 // if the lander's velocity relative to the shape is greater than 50, it's dead
                 Point proj = normal.project(landerVelocity);
                 if (landerVelocity.project(normal).magnitude() > breakThreshold && invulnTimer < 0 && !godMode) {
-                    RP2A03_API.noisePlayNote(14, 200, 15);
+                    RP2A03_API.noisePlayNote(14, 200);
                     isDead = true;
                     deathCount++;
                     deadTimer = 0;
@@ -312,7 +310,7 @@ public class LanderGame : IGameMode {
             levelCompleteTimer += updateTime;
             if (levelCompleteTimer > 0.5) {
                 songs["win"].play();
-                levelCompleteText = new Text(
+                levelCompleteText = new VectorText(
                     $"COMPLETED LEVEL {levelIndex + 1}!\n" +
                     $"TIME: {Math.Floor(levelTimer)}.{Math.Round(levelTimer * 100 % 100)}\n" +
                     $"FUEL USED: {Math.Floor(start_fuel - fuel)}.{Math.Round((start_fuel - fuel) * 100 % 100)}\n" +
@@ -320,9 +318,6 @@ public class LanderGame : IGameMode {
                     $"{(currentLevel.meatball == null ? "COLLECTED MEATBALL" : "")}\n" +
                     "PRESS B3 TO CONTINUE",
                     new Point(10, 200), 16);
-                    totalTime += levelTimer;
-                    totalFuel += start_fuel - fuel;
-                    totalDeaths += deathCount;
                 levelIndex++;
                 if (levelIndex >= levels.Count) {
                     levelIndex = 0;
@@ -338,7 +333,9 @@ public class LanderGame : IGameMode {
         }
         
         // check for meatball collisions
-        if (currentLevel.meatball == null || !currentLevel.meatball.intersects(lander)) return;
+        if (currentLevel.meatball == null || !currentLevel.meatball.intersects(lander)) {
+            return;
+        }
         currentLevel.meatball = null;
         meatballsCollected++;
     }
@@ -364,13 +361,8 @@ public class LanderGame : IGameMode {
                 Drawing.drawPolygon(world, thrust, Color.Red);
                 Drawing.drawPolygon(world, thrust_orange, Color.Orange);
             }
-
-            if (invulnTimer > 0) {
-                Drawing.drawPolygon(world, lander, invulnTimer % 0.4 < 0.2 ? Color.Aqua : Color.Aquamarine);
-            }
-            else {
-                Drawing.drawPolygon(world, lander, Color.Aqua);
-            }
+            Color c = invulnTimer %0.4 < 0.2 ? Color.Aqua : Color.Aquamarine;
+            Drawing.drawPolygon(world, lander, invulnTimer > 0 ? c : Color.Aqua);
         }
         else {
             Drawing.drawCircle(world, new Circle(lander.getCentroid(), deadTimer * 100), new Color((int) (100000 / Math.Pow(deadTimer * 100, 2)), 0, 0), 1, true);
@@ -417,23 +409,27 @@ public class LanderGame : IGameMode {
         world.reset();
     }
 
-    public void LoadContent(ContentManager Content) {
-        meatball = Content.Load<Texture2D>("meatball");
+    public void LoadContent(ContentManager content) {
+        meatball = content.Load<Texture2D>("meatball");
     }
 
     public void Background(GameTime gameTime) {
         // do nothing.
     }
     
-    private static void rotateLander(double angle) {
-        if (!rotateLock) return;
+    private void rotateLander(double angle) {
+        if (!rotateLock) {
+            return;
+        }
         lander.rotate(angle * updateTime);
         theta += angle * updateTime;
         rotateLock = false;
     }
 
-    private static void thrustLander(bool reverse) {
-        if (!thrustLock) return;
+    private void thrustLander(bool reverse) {
+        if (!thrustLock) {
+            return;
+        }
         if (reverse || fuel <= 0) {
             thrust_graphic -= updateTime * 10;
             thrust_graphic = Math.Max(0, thrust_graphic);
@@ -449,14 +445,14 @@ public class LanderGame : IGameMode {
         thrustLock = false;
     }
 
-    private static void loadLevel(Level level) {
+    private void loadLevel(Level level) {
         levelTimer = 0;
         invulnTimer = 2.5;
         levelComplete = false;
         deathCount = 0;
         level.reset();
         currentLevel = level;
-        _shapes = level.shapes;
+        _shapes = level.shapes.ToList();
         theta = 0;
         lander = new Polygon(new List<Point>(new [] { new Point(0, 0), new Point(20, 50), new Point(-20, 50) }));
         lander.translate(center - lander.getCentroid());

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using LunarLander.geometry2d;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -30,13 +31,9 @@ public class Image {
         Drawing.fill(this, Color.Black);
         this.texture_changed = true;
     }
-    
-    public void setPixel(uint x, uint y, Color color) {
-        buffer[x + y * width] = color;
-    }
-    
-    public Color getPixel(uint x, uint y) {
-        return buffer[y * width + x];
+
+    public void render(IReadOnlyList<IColoredShape> shapes) {
+        Drawing.fill(this, Color.Black);
     }
 
     public Texture2D toTexture2D() {

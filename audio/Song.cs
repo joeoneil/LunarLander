@@ -1,15 +1,14 @@
 using System;
-using System.Data.Common;
-using System.Diagnostics;
-using LunarLander.audio;
+
+namespace LunarLander.audio;
 
 public class Song {
-    struct Pulse {
-        public int channel;
-        public int note;
-        public int octave;
-        public int envelope;
-        public bool cv;
+    private struct Pulse {
+        public readonly int channel;
+        public readonly int note;
+        public readonly int octave;
+        public readonly int envelope;
+        public readonly bool cv;
         
         public Pulse(int channel, int note, int octave, int envelope = 7, bool cv = true) {
             this.channel = channel;
@@ -20,9 +19,9 @@ public class Song {
         }
     }
 
-    struct Triangle {
-        public int note;
-        public int octave;
+    private struct Triangle {
+        public readonly int note;
+        public readonly int octave;
 
         public Triangle(int note, int octave) {
             this.note = note;
@@ -30,10 +29,10 @@ public class Song {
         }
     }
 
-    struct Noise {
-        public int period;
-        public int envelope;
-        public bool cv;
+    private struct Noise {
+        public readonly int period;
+        public readonly int envelope;
+        public readonly bool cv;
         
         public Noise(int period, int envelope = 7, bool cv = true) {
             this.period = period;
@@ -42,40 +41,39 @@ public class Song {
         }
     }
 
-    private class Optional<T> {
+    private sealed class Optional<T> {
         private readonly T value;
-        private readonly bool hasValue;
 
         public Optional(T value) {
             this.value = value;
-            this.hasValue = true;
+            this.HasValue = true;
         }
 
         public Optional() {
-            this.hasValue = false;
+            this.HasValue = false;
         }
 
         public T Value {
             get {
-                if (!hasValue) {
+                if (!HasValue) {
                     throw new InvalidOperationException("Optional value is not set");
                 }
                 return value;
             }
         }
 
-        public bool HasValue => hasValue;
+        public bool HasValue { get; }
     }
     
-    private Optional<Pulse>[] pulse1;
-    private Optional<Pulse>[] pulse2;
-    private Optional<Triangle>[] triangle;
-    private Optional<Noise>[] noise;
+    private readonly Optional<Pulse>[] pulse1;
+    private readonly Optional<Pulse>[] pulse2;
+    private readonly Optional<Triangle>[] triangle;
+    private readonly Optional<Noise>[] noise;
 
-    private bool loop;
+    private readonly bool loop;
     private bool isPlaying;
 
-    private double dt;
+    private readonly double dt;
     private int songIndex;
     
     public Song(double length, double dt, bool loop) {
@@ -114,8 +112,12 @@ public class Song {
             return;
         }
         if (songIndex >= pulse1.Length) {
-            if (loop) songIndex = 0;
-            else return;
+            if (loop) {
+                songIndex = 0;
+            }
+            else {
+                return;
+            }
         }
         
         if (pulse1[songIndex].HasValue) {

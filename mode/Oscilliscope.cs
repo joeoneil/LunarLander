@@ -1,6 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Globalization;
 using LunarLander.audio;
 using LunarLander.data;
 using LunarLander.geometry2d;
@@ -51,11 +49,9 @@ public class Oscilliscope : IGameMode {
         0, 0, 0, 0, 0, 0, 0, 0, // $401E
         0, 0, 0, 0, 0, 0, 0, 0, // $401F
     };
-
-    private static int noiseIndex = 0;
-
-    private static readonly Rectangle window = new Rectangle(new Point(64, 800), 600 - 128, 400);
-    private static readonly Line xAxis = new Line(new Point(64, 1000), new Point(600 - 64, 1000));
+    
+    private static readonly Rectangle window = new (new Point(64, 800), 600 - 128, 400);
+    private static readonly Line xAxis = new (new Point(64, 1000), new Point(600 - 64, 1000));
 
     private static readonly CompoundButton b1 = CompoundButton.or(GenericButton.KeyQ, GenericButton.DevA1);
     private static readonly CompoundButton b2 = CompoundButton.or(GenericButton.KeyW, GenericButton.DevA2);
@@ -68,11 +64,13 @@ public class Oscilliscope : IGameMode {
     public static readonly Oscilliscope instance = new();
 
     private Image screen;
-    private Text[] registers = new Text[32 * 8];
+    private readonly VectorText[] registers = new VectorText[32 * 8];
     
     private InputManager inputManager;
 
-    public void LoadContent(ContentManager content) {
+    public void LoadContent(ContentManager content)
+    {
+        // Method intentionally left empty.
     }
 
     public void Initialize(IGraphicsDeviceService graphicsDeviceService, uint width, uint height) {
@@ -85,7 +83,7 @@ public class Oscilliscope : IGameMode {
             int extra = row > 15 ? 5 : 0;
             row %= 16;
             int row_extra = row / 4;
-            registers[i] = new Text("0", new Point(col * scale + extra * (scale * 2) + (scale * 8), row * (scale * 2) + row_extra * (scale * 2) +
+            registers[i] = new VectorText("0", new Point(col * scale + extra * (scale * 2) + (scale * 8), row * (scale * 2) + row_extra * (scale * 2) +
                 (scale * 4)), scale);
         }
         inputManager.onPressed(b1, () => {
@@ -107,18 +105,20 @@ public class Oscilliscope : IGameMode {
         });
     }
 
-    public void ReInitialize() {
+    public void ReInitialize()
+    {
+        // Method intentionally left empty.
     }
 
     public void Update(GameTime gameTime) {
         inputManager.update(Keyboard.GetState());
-        byte[] registers = new byte[32];
+        byte[] bytes = new byte[32];
         for (int i = 0; i < 32; i++) {
-            registers[i] = RP2A03.read(i);
+            bytes[i] = RP2A03.read(i);
         }
         for (int i = 0; i < 32; i++) {
             for (int j = 0; j < 8; j++) {
-                this.registers[i * 8 + j].setText(((registers[i] >> (7 - j)) & 1).ToString());
+                this.registers[i * 8 + j].setText(((bytes[i] >> (7 - j)) & 1).ToString(CultureInfo.InvariantCulture));
             }
         }
     }
@@ -143,8 +143,8 @@ public class Oscilliscope : IGameMode {
             short right = (short)((audio[i * 2 + 3] << 8) | audio[i * 2 + 2]);
             
             // convert 2s complement unsigned short to double
-            double left_d = (double)left / (double)short.MaxValue;
-            double right_d = (double)right / (double)short.MaxValue;
+            double left_d = (double)left / short.MaxValue;
+            double right_d = (double)right / short.MaxValue;
             
             double x1 = window.left + ((2 * i) / (double)audio.Length) * window.width;
             double x2 = window.left + ((2 * i + 1) / (double)audio.Length) * window.width;
@@ -156,6 +156,8 @@ public class Oscilliscope : IGameMode {
         spriteBatch.Draw(screen.toTexture2D(), Vector2.Zero, Color.White);
     }
 
-    public void Background(GameTime gameTime) {
+    public void Background(GameTime gameTime)
+    {
+        // Method intentionally left empty.
     }
 }

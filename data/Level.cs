@@ -1,15 +1,12 @@
 using System.Collections.Generic;
-using System.Dynamic;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using LunarLander.geometry2d;
 
 namespace LunarLander.data; 
 
 public class Level {
     private readonly List<Shape> baseShapes;
-    public List<Shape> shapes { get; private set; }
+    public IEnumerable<Shape> shapes { get; private set; }
     public Rectangle goal { get; private set; }
     public Line flagpole { get; private set; }
     public Polygon flag { get; private set; }
@@ -33,11 +30,13 @@ public class Level {
             new Point(flagpole.p2.x + 20, flagpole.p2.y + 6)
         }));
         this.baseShapes = shapes;
-        this.shapes = getShapes();
+        this.shapes = makeShapes();
     }
 
     public void translate(double x, double y) {
-        shapes.ForEach(s => s.translate(x, y));
+        foreach (Shape s in shapes) {
+            s.translate(x, y);
+        }
         goal.translate(x, y);
         flagpole.translate(x, y);
         flag.translate(x, y);
@@ -53,10 +52,10 @@ public class Level {
     
     public void reset() {
         translate(-amountMoved);
-        this.shapes = getShapes();
+        this.shapes = makeShapes();
     }
     
-    public List<Shape> getShapes() {
+    public IEnumerable<Shape> makeShapes() {
         List<Shape> processed = new ();
         foreach(Shape s in this.baseShapes) {
             if (s is not Line l) {
@@ -74,18 +73,16 @@ public class Level {
         int i = 0;
         flagpole.translate(0, 25);
         flag.translate(0, 25);
-        while (processed.Any(flagpole.intersects)) {
+        while (processed.Any(flagpole.intersects) && i != 50) {
             flagpole.translate(0, -1);
             flag.translate(0, -1);
-            if (i++ == 50) {
-                break;
-            }
+            i++;
         }
         return processed;
     }
 
     private Level addMeatball(Point p) {
-        Point offset = new Point(25, 25);
+        var offset = new Point(25, 25);
         this.meatball = new Rectangle(p - offset, p + offset);
         return this;
     }

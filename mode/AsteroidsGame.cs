@@ -13,11 +13,11 @@ public class AsteroidsGame : IGameMode {
     private AsteroidsGame() { }
     public static AsteroidsGame instance { get; } = new();
 
-    private static Image world;
-    private static InputManager inputManager;
+    private Image world;
+    private InputManager inputManager;
 
-    private static double songTimer = 0;
-    private static int noteIndex = 0;
+    private double songTimer = 0;
+    private int noteIndex = 0;
     
 #if RELEASE
     // TODO: Update Devcade bindings once controller design is finalized
@@ -25,19 +25,25 @@ public class AsteroidsGame : IGameMode {
     private static readonly CompoundButton _rotateLeft = CompoundButton.fromGeneric(GenericButton.DevA2);
     private static readonly CompoundButton _rotateRight = CompoundButton.fromGeneric(GenericButton.DevA3);
 #else
-    private static readonly CompoundButton _thrust = CompoundButton.fromGeneric(GenericButton.KeyW);
-    private static readonly CompoundButton _rotateLeft = CompoundButton.fromGeneric(GenericButton.KeyA);
-    private static readonly CompoundButton _rotateRight = CompoundButton.fromGeneric(GenericButton.KeyD);
+    public static CompoundButton thrust { get; } = CompoundButton.fromGeneric(GenericButton.KeyW);
+    public static CompoundButton rotateLeft { get; } = CompoundButton.fromGeneric(GenericButton.KeyA);
+    public static CompoundButton rotateRight { get; } = CompoundButton.fromGeneric(GenericButton.KeyD);
 #endif
     
-    public void LoadContent(ContentManager content) { }
+    public void LoadContent(ContentManager content)
+    {
+        // Method intentionally left empty.
+    }
 
     public void Initialize(IGraphicsDeviceService graphicsDeviceService, uint width, uint height) {
         world = new Image(graphicsDeviceService.GraphicsDevice, width, height);
         inputManager = new InputManager();
     }
 
-    public void ReInitialize() { }
+    public void ReInitialize()
+    {
+        // Method intentionally left empty.
+    }
 
     public void Update(GameTime gameTime) {
         inputManager.update(Keyboard.GetState());

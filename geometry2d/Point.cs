@@ -29,6 +29,13 @@ public class Point
     public static Point operator /(double s, Point a) => new (s / a.x, s / a.y);
     public static double operator %(Point a, Point b) => a.cross(b);
     public static double operator ^(Point a, Point b) => a.dot(b);
+    public static bool operator ==(Point a, Point b) => b != null && a != null && Math.Abs(a.x - b.x) < 0.00001 && Math.Abs(a.y - b.y) < 0.00001;
+    public static bool operator !=(Point a, Point b) => !(a == b);
+    public static bool operator <(Point a, Point b) => a.x < b.x && a.y < b.y;
+    public static bool operator >(Point a, Point b) => a.x > b.x && a.y > b.y;
+    public static bool operator <=(Point a, Point b) => a.x <= b.x && a.y <= b.y;
+    public static bool operator >=(Point a, Point b) => a.x >= b.x && a.y >= b.y;
+    
     
     
     public double dot(Point other) => x * other.x + y * other.y;
@@ -57,7 +64,7 @@ public class Point
         return (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
     }
     
-    public static bool ccw(List<Point> points)
+    public static bool ccw(IList<Point> points)
     {
         bool result = true;
         for (int i = 0; i < points.Count; i++) {
@@ -114,9 +121,22 @@ public class Point
     }
 
     public void cap(double magnitude) {
-        if (this.magnitude() <= magnitude) return;
+        if (this.magnitude() <= magnitude) {
+            return;
+        }
         this.normalize();
         this.x *= magnitude;
         this.y *= magnitude;
+    }
+    
+    public override bool Equals(object obj) {
+        if (obj is Point p) {
+            return this == p;
+        }
+        return false;
+    }
+    
+    public override int GetHashCode() {
+        return (int) (this.x * 1_000_000 + this.y);
     }
 }

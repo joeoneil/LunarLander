@@ -4,24 +4,22 @@ using LunarLander.geometry2d;
 
 namespace LunarLander.data; 
 
-public class Text {
-    public List<Line> Lines { get; private set; }
+public class VectorText {
+    public IEnumerable<Line> Lines { get; private set; }
     public Point position { get; private set; }
     public double scale { get; private set; }
-    public string text;
+    private string text;
 
-    public Text(string text, Point position, double scale) {
+    public VectorText(string text, Point position, double scale) {
         this.position = position;
         this.scale = scale;
         setText(text);
     }
 
-    public string getText() {
-        return text;
-    }
-
     public void setText(string text) {
-        if (this.text == text) return;
+        if (this.text == text) {
+            return;
+        }
         this.text = text;
         int x = 0;
         int y = 0;
@@ -34,7 +32,7 @@ public class Text {
                     y++;
                     break;
                 case >= 32 and <= 126:
-                    Lines.AddRange(ascii[index].Select(l => {
+                    Lines = Lines.Concat(ascii[index].Select(l => {
                         Line cl = l.clone();
                         cl.scale(scale * 0.8);
                         cl.translate(x * scale, 2 * y * scale);
@@ -44,7 +42,7 @@ public class Text {
                     x++;
                     break;
                 default:
-                    throw new System.Exception("Invalid character: " + c);
+                    throw new System.ArgumentException("Invalid character: " + c);
             }
         }
     }
@@ -310,9 +308,7 @@ public class Text {
         }),
         
         /* @ */ // 0x40
-        new List<Line>(new Line[] {
-            // no.
-        }),
+        new List<Line>(System.Array.Empty<Line>()),
         
         /* A */ // 0x41
         new List<Line>(new[] {

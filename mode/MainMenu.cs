@@ -16,20 +16,15 @@ namespace LunarLander.mode;
 public class MainMenu : IGameMode {
 
     private class MenuItem {
-        public Text text { get; private set; }
+        public VectorText text { get; private set; }
         public string internalName { get; private set; }
-        
-        public MenuItem(Text text, string internalName) {
-            this.text = text;
-            this.internalName = internalName;
-        }
         
         public MenuItem(string internalName) {
             this.text = null;
             this.internalName = internalName;
         }
         
-        public void setText(Text text) {
+        public void setText(VectorText text) {
             this.text = text;
         }
     }
@@ -100,14 +95,14 @@ public class MainMenu : IGameMode {
                 center.x - menuItemsString[i].Length * fontSize / 2.0,
                 center.y + ((i + 1) * fontSize * 3) - menuItemsString.Count * fontSize * 3 / 2.0
             );
-            menuItems[i].setText(new Text(menuItemsString[i], tlc, fontSize));
+            menuItems[i].setText(new VectorText(menuItemsString[i], tlc, fontSize));
         }
         
         _inputManager.onHeld(up, () => {
             if (heldFrames != 0 && (heldFrames <= 30 || heldFrames % 5 != 0)) {
                 heldFrames++;
                 return;
-            };
+            }
             RP2A03_API.pulsePlayNote(0, 9, 3, 2, 2);
             selectedItem--;
             if (selectedItem < 0) selectedItem = menuItems.Count - 1;
@@ -117,7 +112,7 @@ public class MainMenu : IGameMode {
             if (heldFrames != 0 && (heldFrames <= 30 || heldFrames % 5 != 0)) {
                 heldFrames++;
                 return;
-            };
+            }
             RP2A03_API.pulsePlayNote(0, 9, 3, 2, 2);
             selectedItem++;
             if (selectedItem >= menuItems.Count) selectedItem = 0;

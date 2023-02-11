@@ -6,11 +6,15 @@ namespace LunarLander.geometry2d;
 
 public class Circle : Shape{
     public Point center { get; private set; }
+
     public double radius { get; private set; }
+
+    public double squareRadius { get; set; }
     
     public Circle(Point center, double radius) {
         this.center = center;
         this.radius = radius;
+        this.squareRadius = radius * radius;
     }
     
     public override bool contains(double x, double y) {
@@ -37,8 +41,8 @@ public class Circle : Shape{
             return Math.Abs(center.squareDistance(x, y) - radius * radius);
     }
     
-    public override bool intersects(Shape s) {
-        return s switch {
+    public override bool intersects(Shape other) {
+        return other switch {
             Circle circle => center.distance(circle.center) <= radius + circle.radius,
             Rectangle rectangle => intersects(rectangle),
             Polygon polygon => intersects(polygon),
@@ -46,19 +50,29 @@ public class Circle : Shape{
         };
     }
 
-    public override Point contactNormal(Shape s) {
-        throw new System.NotImplementedException();
+    public override Point contactNormal(Shape other) {
+        throw new NotSupportedException();
     }
 
     private bool intersects(Rectangle r) {
         double dx = Math.Abs(center.x - r.getCentroid().x);
         double dy = Math.Abs(center.y - r.getCentroid().y);
 
-        if (dx > r.width / 2 + radius) { return false; }
-        if (dy > r.height / 2 + radius) { return false; }
+        if (dx > r.width / 2 + radius) {
+            return false;
+        }
 
-        if (dx <= r.width / 2) { return true; }
-        if (dy <= r.height / 2) { return true; }
+        if (dy > r.height / 2 + radius) {
+            return false;
+        }
+
+        if (dx <= r.width / 2) {
+            return true;
+        }
+
+        if (dy <= r.height / 2) {
+            return true;
+        }
 
         double cornerDistance_sq = Math.Pow(dx - r.width / 2, 2) +
                                    Math.Pow(dy - r.height / 2, 2);

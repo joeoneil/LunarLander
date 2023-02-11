@@ -42,15 +42,15 @@ public class Options : IGameMode {
     private int heldFrames;
 
     private interface IOption {
-        public Text getText();
-        public Text getValueText();
+        public VectorText getText();
+        public VectorText getValueText();
         public void left();
         public void right();
         public bool isDefault();
     }
     private class Option<T> : IOption {
-        private readonly Text text;
-        private readonly Text valueText;
+        private readonly VectorText text;
+        private readonly VectorText valueText;
         public T value;
         private readonly T def;
             
@@ -62,10 +62,10 @@ public class Options : IGameMode {
         public delegate string Display(T value);
         
         public Option(string text, T value, Point position, int scale) {
-            this.text = new Text(text, position, scale);
+            this.text = new VectorText(text, position, scale);
             this.value = value;
             this.def = value;
-            this.valueText = new Text(value.ToString(), position + new Point((text.Length + 2) * scale, 0), scale);
+            this.valueText = new VectorText(value.ToString(), position + new Point((text.Length + 2) * scale, 0), scale);
             this.display = T => T.ToString();
             this.onLeft = _ => { };
             this.onRight = _ => { };
@@ -84,11 +84,11 @@ public class Options : IGameMode {
             valueText.setText(display(value));
         }
         
-        public Text getText() {
+        public VectorText getText() {
             return text;
         }
         
-        public Text getValueText() {
+        public VectorText getValueText() {
             return valueText;
         }
 
@@ -152,7 +152,7 @@ public class Options : IGameMode {
             AudioBuffer.gain = self.value / 100.0;
         });
         volumeOption.SetOnRight(self => {
-            self.value = Math.Min(200, self.value + 5);
+            self.value = Math.Min(300, self.value + 5);
             AudioBuffer.gain = self.value / 100.0;
         });
         options.Add(volumeOption);
@@ -206,7 +206,7 @@ public class Options : IGameMode {
         background.reset();
 
         int i = 0;
-        foreach (Text text in options.Select(option => option.getText())) {
+        foreach (VectorText text in options.Select(option => option.getText())) {
             foreach (Line l in text.Lines) {
                 Drawing.drawLine(background, l, i == selected ? Color.White : Color.Gray);
             }

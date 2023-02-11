@@ -47,8 +47,9 @@ public class Polygon : Shape {
         bool c = false;
         for (i = 0, j = points.Count - 1; i < points.Count; j = i++) {
             if (points[i].y > y != points[j].y > y &&
-                x < (points[j].x - points[i].x) * (y - points[i].y) / (points[j].y - points[i].y) + points[i].x)
+                x < (points[j].x - points[i].x) * (y - points[i].y) / (points[j].y - points[i].y) + points[i].x) {
                 c = !c;
+            }
         }
         return c;
     }
@@ -86,9 +87,9 @@ public class Polygon : Shape {
         boundingBoxCached = false;
     }
 
-    public override void rotate(double angle, Point center) {
+    public override void rotate(double angle, Point p) {
         foreach (Point point in points) {
-            point.rotate(angle, center);
+            point.rotate(angle, p);
         }
         centroidCached = false;
         linesCached = false;
@@ -209,7 +210,9 @@ public class Polygon : Shape {
     }
 
     public List<Line> getLines() {
-        if (linesCached) return lines;
+        if (linesCached) {
+            return lines;
+        }
         updateLines();
         linesCached = true;
         return lines;
